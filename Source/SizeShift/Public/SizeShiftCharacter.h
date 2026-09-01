@@ -38,10 +38,6 @@ protected:
 
 	void Look(const struct FInputActionValue& Value);
 
-	void StartCrouch();
-
-	void StopCrouch();
-
 	void ToggleCrouch();
 
 	void IncreaseSize();
@@ -49,6 +45,10 @@ protected:
 	void DecreaseSize();
 
 	void Interact();
+
+	void StartSprint();
+
+	void StopSprint();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 
@@ -65,6 +65,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* CrouchAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	UInputAction* SprintAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	UInputAction* SizeUpAction;
@@ -89,4 +92,14 @@ protected:
 
 	UPROPERTY()
 	UUserWidget* CrosshairWidget;
+
+	FVector OriginalCameraLocation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
+	float SprintSpeed = 900.0f;
+
+	float OriginalWalkSpeed;
+
+
+	
 };

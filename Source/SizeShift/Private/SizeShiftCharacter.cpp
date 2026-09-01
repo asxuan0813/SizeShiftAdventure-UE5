@@ -40,54 +40,15 @@ void ASizeShiftCharacter::Tick(float DeltaTime)
 
 }
 
-void ASizeShiftCharacter::Move(const FInputActionValue& Value)
-{
-	const FVector2D MovementVector = Value.Get<FVector2D>();
-
-	AddMovementInput(GetActorForwardVector(), MovementVector.Y);
-	AddMovementInput(GetActorRightVector(), MovementVector.X);
-}
-
-void ASizeShiftCharacter::Look(const FInputActionValue& Value)
-{
-	FVector2D LookAxisVector = Value.Get<FVector2D>();
-
-	AddControllerYawInput(LookAxisVector.X);
-	AddControllerPitchInput(LookAxisVector.Y);
-}
-
-void ASizeShiftCharacter::StartCrouch()
-{
-	if (!bIsCrouched)
-	{
-		Crouch();
-	}
-}
-
-void ASizeShiftCharacter::StopCrouch()
-{
-	if (bIsCrouched)
-	{
-		UnCrouch();
-	}
-}
-
-void ASizeShiftCharacter::ToggleCrouch()
-{
-	if (bIsCrouched)
-	{
-		StopCrouch();
-	}
-	else
-	{
-		StartCrouch();
-	}
-}
-
 // Called when the game starts or when spawned
 void ASizeShiftCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	OriginalCameraLocation = FirstPersonCamera->GetRelativeLocation();
+
+	OriginalWalkSpeed =
+		GetCharacterMovement()->MaxWalkSpeed;
 
 	if (GetCharacterMovement())
 	{
@@ -129,12 +90,6 @@ void ASizeShiftCharacter::BeginPlay()
 				FirstPersonCamera,
 				FAttachmentTransformRules::SnapToTargetNotIncludingScale
 			);
-
-			UE_LOG(
-				LogTemp,
-				Log,
-				TEXT("[Character] SizeShiftGun spawned successfully")
-			);
 		}
 	}
 
@@ -149,16 +104,52 @@ void ASizeShiftCharacter::BeginPlay()
 		if (CrosshairWidget)
 		{
 			CrosshairWidget->AddToViewport();
-
-			UE_LOG(
-				LogTemp,
-				Log,
-				TEXT("[Character] Crosshair created successfully")
-			);
 		}
 	}
 }
 
+void ASizeShiftCharacter::Move(const FInputActionValue& Value)
+{
+	const FVector2D MovementVector = Value.Get<FVector2D>();
+
+	AddMovementInput(GetActorForwardVector(), MovementVector.Y);
+	AddMovementInput(GetActorRightVector(), MovementVector.X);
+}
+
+void ASizeShiftCharacter::Look(const FInputActionValue& Value)
+{
+	FVector2D LookAxisVector = Value.Get<FVector2D>();
+
+	AddControllerYawInput(LookAxisVector.X);
+	AddControllerPitchInput(LookAxisVector.Y);
+}
+
+void ASizeShiftCharacter::ToggleCrouch()
+{
+	if (bIsCrouched)
+	{
+		UnCrouch();
+		FirstPersonCamera->SetRelativeLocation(OriginalCameraLocation);
+	}
+	else
+	{
+		Crouch();
+		FVector CameraLocation = FirstPersonCamera->GetRelativeLocation();
+		CameraLocation.Z = 40.0f;
+
+		FirstPersonCamera->SetRelativeLocation(CameraLocation);
+	}
+}
+
+void ASizeShiftCharacter::StartSprint()
+{
+	GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
+}
+
+void ASizeShiftCharacter::StopSprint()
+{
+	GetCharacterMovement()->MaxWalkSpeed = OriginalWalkSpeed;
+}
 
 // Called to bind functionality to input
 void ASizeShiftCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -204,6 +195,24 @@ void ASizeShiftCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 				&ACharacter::StopJumping
 			);
 		}
+		
+		if (SprintAction)
+		{
+			EnhancedInputComponent->BindAction(
+				SprintAction,
+				ETriggerEvent::Started,
+				this,
+				&ASizeShiftCharacter::StartSprint
+			);
+
+			EnhancedInputComponent->BindAction(
+				SprintAction,
+				ETriggerEvent::Completed,
+				this,
+				&ASizeShiftCharacter::StopSprint
+			);
+		}
+		
 
 		if (CrouchAction)
 		{
