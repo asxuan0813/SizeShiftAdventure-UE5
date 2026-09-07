@@ -33,13 +33,6 @@ ASizeShiftCharacter::ASizeShiftCharacter()
 	);
 }
 
-// Called every frame
-void ASizeShiftCharacter::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-}
-
 // Called when the game starts or when spawned
 void ASizeShiftCharacter::BeginPlay()
 {
@@ -253,6 +246,26 @@ void ASizeShiftCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 				&ASizeShiftCharacter::Interact
 			);
 		}
+
+		if (AdjustHoldDistanceAction)
+		{
+			EnhancedInputComponent->BindAction(
+				AdjustHoldDistanceAction,
+				ETriggerEvent::Triggered,
+				this,
+				&ASizeShiftCharacter::AdjustHoldDistance
+			);
+		}
+
+		if (HoldBoxAsideAction)
+		{
+			EnhancedInputComponent->BindAction(
+				HoldBoxAsideAction,
+				ETriggerEvent::Started,
+				this,
+				&ASizeShiftCharacter::ToggleThrowAimMode
+			);
+		}
 	}
 }
 
@@ -267,7 +280,14 @@ void ASizeShiftCharacter::IncreaseSize()
 
 	if (SizeShiftGun->IsHoldingPickupThrow())
 	{
-		SizeShiftGun->Throw();
+		SizeShiftGun->TryThrow();
+		return;
+	}
+
+	if (SizeShiftGun->IsInteractingPushPull())
+	{
+		SizeShiftGun->PushPullBurst();
+
 		return;
 	}
 
@@ -283,7 +303,7 @@ void ASizeShiftCharacter::DecreaseSize()
 
 	if (SizeShiftGun->IsHoldingPickupThrow())
 	{
-		SizeShiftGun->Drop();
+		
 		return;
 	}
 
@@ -300,4 +320,23 @@ void ASizeShiftCharacter::Interact()
 	SizeShiftGun->Interact();
 }
 
+//------------------------------------------------------------------
 
+void ASizeShiftCharacter::AdjustHoldDistance(
+	const FInputActionValue& Value)
+{
+	if (SizeShiftGun)
+	{
+		SizeShiftGun->AdjustHoldDistance(
+			Value.Get<float>()
+		);
+	}
+}
+
+void ASizeShiftCharacter::ToggleThrowAimMode()
+{
+	if (SizeShiftGun)
+	{
+		SizeShiftGun->ToggleThrowAimMode();
+	}
+}

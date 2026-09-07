@@ -2,10 +2,6 @@
 
 #include "Components/StaticMeshComponent.h"
 
-// ============================================================
-// Constructor
-// ============================================================
-
 ASizeShiftBox::ASizeShiftBox()
 {
     PrimaryActorTick.bCanEverTick = false;
@@ -24,26 +20,30 @@ ASizeShiftBox::ASizeShiftBox()
     );
 }
 
-// ============================================================
-// Size
-// ============================================================
-
-float ASizeShiftBox::GetSizeMultiplier() const
+void ASizeShiftBox::OnConstruction(const FTransform& Transform)
 {
-    switch (SizeType)
+    Super::OnConstruction(Transform);
+
+    UpdateBoxProperties();
+}
+
+void ASizeShiftBox::BeginPlay()
+{
+    Super::BeginPlay();
+
+    UpdateBoxProperties();
+}
+
+void ASizeShiftBox::SetBoxSize(EBoxSizeType NewSize)
+{
+    if (SizeType == NewSize)
     {
-    case EBoxSizeType::Small:
-        return 0.5f;
-
-    case EBoxSizeType::Medium:
-        return 1.0f;
-
-    case EBoxSizeType::Large:
-        return 1.5f;
-
-    default:
-        return 1.0f;
+        return;
     }
+
+    SizeType = NewSize;
+
+    UpdateBoxProperties();
 }
 
 void ASizeShiftBox::IncreaseBoxSize()
@@ -102,46 +102,64 @@ void ASizeShiftBox::DecreaseBoxSize()
     }
 }
 
-void ASizeShiftBox::SetBoxSize(EBoxSizeType NewSize)
-{
-    if (SizeType == NewSize)
-    {
-        return;
-    }
-
-    SizeType = NewSize;
-
-    UpdateBoxProperties();
-}
-
 EBoxSizeType ASizeShiftBox::GetBoxSize() const
 {
     return SizeType;
 }
 
-// ============================================================
-// Material
-// ============================================================
+EBoxInteractionType ASizeShiftBox::GetInteractionType() const
+{
+    return InteractionType;
+}
 
 float ASizeShiftBox::GetDensity() const
 {
-    if (!MaterialData)
-    {
-        UE_LOG(
-            LogTemp,
-            Warning,
-            TEXT("[SizeShiftBox] No MaterialData assigned!")
-        );
-
-        return 200.0f;
-    }
-
-    return MaterialData->MaterialData.Density;
+    return Density;
 }
 
-// ============================================================
-// Interaction
-// ============================================================
+float ASizeShiftBox::GetVolume() const
+{
+    return Volume;
+}
+
+float ASizeShiftBox::GetMass() const
+{
+    return Mass;
+}
+
+float ASizeShiftBox::GetSizeMultiplier() const
+{
+    switch (SizeType)
+    {
+    case EBoxSizeType::Small:
+        return 0.49f;
+
+    case EBoxSizeType::Medium:
+        return 0.99f;
+
+    case EBoxSizeType::Large:
+        return 1.99f;
+
+    default:
+        return 0.99f;
+    }
+}
+
+float ASizeShiftBox::ResolveMaterialDensity() const
+{
+    if (MaterialData)
+    {
+        return MaterialData->MaterialData.Density;
+    }
+
+    UE_LOG(
+        LogTemp,
+        Warning,
+        TEXT("[SizeShiftBox] No MaterialData assigned. Using default density.")
+    );
+
+    return 200.0f;
+}
 
 void ASizeShiftBox::UpdateInteractionType()
 {
@@ -177,31 +195,6 @@ void ASizeShiftBox::UpdateInteractionType()
     }
 }
 
-EBoxInteractionType ASizeShiftBox::GetInteractionType() const
-{
-    return InteractionType;
-}
-
-// ============================================================
-// Physics
-// ============================================================
-
-float ASizeShiftBox::GetVolume() const
-{
-    const float SizeMultiplier =
-        GetSizeMultiplier();
-
-    return BaseVolume *
-        SizeMultiplier *
-        SizeMultiplier *
-        SizeMultiplier;
-}
-
-float ASizeShiftBox::GetMass() const
-{
-    return GetVolume() * GetDensity();
-}
-
 void ASizeShiftBox::UpdateBoxProperties()
 {
     const float SizeMultiplier =
@@ -211,9 +204,13 @@ void ASizeShiftBox::UpdateBoxProperties()
     // Calculate physics values
     // --------------------------------------------------------
 
-    Volume = GetVolume();
+    Volume = 
+        BaseVolume *
+        SizeMultiplier *
+        SizeMultiplier *
+        SizeMultiplier;
 
-    Density = GetDensity();
+    Density = ResolveMaterialDensity();
 
     Mass = Volume * Density;
 
@@ -251,22 +248,8 @@ void ASizeShiftBox::UpdateBoxProperties()
     // --------------------------------------------------------
 
     PrintBoxStatus();
+    
 }
-
-// ============================================================
-// Begin Play
-// ============================================================
-
-void ASizeShiftBox::BeginPlay()
-{
-    Super::BeginPlay();
-
-    UpdateBoxProperties();
-}
-
-// ============================================================
-// Debug
-// ============================================================
 
 void ASizeShiftBox::PrintBoxStatus() const
 {
@@ -334,3 +317,10 @@ void ASizeShiftBox::PrintBoxStatus() const
         Mass
     );
 }
+
+
+
+
+
+
+

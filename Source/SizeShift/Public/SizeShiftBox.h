@@ -8,7 +8,6 @@
 #include "SizeShiftBox.generated.h"
 
 class UStaticMeshComponent;
-class UPhysicalMaterial;
 
 UENUM(BlueprintType)
 enum class EBoxSizeType : uint8
@@ -35,9 +34,10 @@ public:
 
     ASizeShiftBox();
 
-    // ========================================
-    // SIZE
-    // ========================================
+    // ============================================================
+    // Size Commands
+    // ============================================================
+
     UFUNCTION(BlueprintCallable, Category = "Box")
     void SetBoxSize(EBoxSizeType NewSize);
 
@@ -47,15 +47,15 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Box")
     void DecreaseBoxSize();
 
+    // ============================================================
+    // Read-only Box Data
+    // ============================================================
+
     UFUNCTION(BlueprintPure, Category = "Box")
     EBoxSizeType GetBoxSize() const;
 
     UFUNCTION(BlueprintPure, Category = "Box")
     EBoxInteractionType GetInteractionType() const;
-
-    // ========================================
-    // PHYSICS
-    // ========================================
 
     UFUNCTION(BlueprintPure, Category = "Box|Physics")
     float GetVolume() const;
@@ -73,41 +73,44 @@ public:
 
 protected:
 
+    // ============================================================
+    // Life Cycle
+    // ============================================================
+
     virtual void BeginPlay() override;
 
-    // ========================================
-    // COMPONENT
-    // ========================================
+    virtual void OnConstruction(const FTransform& Transform) override;
+
+    // ============================================================
+    // Component
+    // ============================================================
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Box")
     UStaticMeshComponent* BoxMesh;
 
-    // ========================================
-    // SIZE
-    // ========================================
+    // ============================================================
+    // Editable Configuration
+    // ============================================================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Box")
     EBoxSizeType SizeType = EBoxSizeType::Small;
 
-    // ========================================
-    // INTERACTION
-    // ========================================
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Box|Material")
+    TObjectPtr<UBoxMaterialDataAsset> MaterialData;
+
+    // Physics Configuration
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Box|Physics")
+    float BaseVolume = 1.0f;
+
+    // ============================================================
+    // Calculated Runtime Data
+    // ============================================================
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Box")
     EBoxInteractionType InteractionType =
         EBoxInteractionType::PickupThrow;
 
-    // ========================================
-    // MATERIAL DATA
-    // ========================================
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Box|Material")
-    TObjectPtr<UBoxMaterialDataAsset> MaterialData;
-
-    // ========================================
-    // PHYSICS DATA
-    // ========================================
-
+    // Calculated Physics Values (Read Only)
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Box|Physics")
     float Volume = 0.125f;
 
@@ -117,12 +120,11 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Box|Physics")
     float Mass = 25.0f;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Box|Physics")
-    float BaseVolume = 1.0f;
+private:
 
-    // ========================================
-    // INTERNAL
-    // ========================================
+    // ============================================================
+    // Internal Calculation
+    // ============================================================
 
     void UpdateBoxProperties();
 
@@ -130,7 +132,11 @@ protected:
 
     float GetSizeMultiplier() const;
 
-    void UpdatePhysicsMaterial();
+    float ResolveMaterialDensity() const;
+
+    // ============================================================
+    // DEBUG
+    // ============================================================
 
     void PrintBoxStatus() const;
 
