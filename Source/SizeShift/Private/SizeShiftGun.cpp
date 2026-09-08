@@ -19,10 +19,6 @@ ASizeShiftGun::ASizeShiftGun()
 
     RootComponent = GunMesh;
 
-    PhysicsHandle = CreateDefaultSubobject<UPhysicsHandleComponent>(
-        TEXT("PhysicsHandle")
-    );
-
     HeldBoxPreview =
         CreateDefaultSubobject<UStaticMeshComponent>(
             TEXT("HeldBoxPreview")
@@ -71,49 +67,9 @@ void ASizeShiftGun::Tick(float DeltaTime)
 
     UpdateAimTarget();
 
-    // ========================================================
-    // PICKUP / THROW
-    // ========================================================
+    UpdatePickupThrow();
 
-    if (IsHoldingPickupThrow() &&
-        ActiveInteractionTarget &&
-        GetOwner())
-    {
-        const float DistanceFromPlayer =
-            FVector::Dist(
-                GetOwner()->GetActorLocation(),
-                ActiveInteractionTarget->GetActorLocation()
-            );
-
-        if (DistanceFromPlayer > AutoDropDistance)
-        {
-            Drop();
-
-            return;
-        }
-    }
-
-    if (GunState == ESizeShiftGunState::Interacting &&
-        PhysicsHandle &&
-        PhysicsHandle->GetGrabbedComponent())
-    {
-        PhysicsHandle->SetTargetLocationAndRotation(
-            GetHoldLocation(),
-            HeldBoxRotation
-        );
-    }
-
-    // ========================================================
-    // PUSH / PULL
-    // ========================================================
-
-    if (GunState == ESizeShiftGunState::Interacting &&
-        ActiveInteractionTarget &&
-        ActiveInteractionTarget->GetInteractionType()
-        == EBoxInteractionType::PushPull)
-    {
-        UpdatePushPull(DeltaTime);
-    }
+    UpdatePushPull(DeltaTime);
 }
 
 // ============================================================
@@ -122,17 +78,8 @@ void ASizeShiftGun::Tick(float DeltaTime)
 
 ASizeShiftBox* ASizeShiftGun::GetAimTarget() const
 {
-    if (!GetOwner())
-    {
-        return nullptr;
-    }
-
-    AActor* OwnerActor = GetOwner();
-
     APlayerController* PlayerController =
-        Cast<APlayerController>(
-            OwnerActor->GetInstigatorController()
-        );
+        GetPlayerController();
 
     if (!PlayerController)
     {
@@ -157,7 +104,7 @@ ASizeShiftBox* ASizeShiftGun::GetAimTarget() const
 
     FCollisionQueryParams Params;
     Params.AddIgnoredActor(this);
-    Params.AddIgnoredActor(OwnerActor);
+    Params.AddIgnoredActor(GetOwner());
 
     const bool bHit =
         GetWorld()->LineTraceSingleByChannel(
@@ -333,6 +280,16 @@ void ASizeShiftGun::Interact()
     StartInteraction();
 }
 
+void ASizeShiftGun::CancelInteraction()
+{
+    if (GunState != ESizeShiftGunState::Interacting)
+    {
+        return;
+    }
+
+    StopInteraction();
+}
+
 bool ASizeShiftGun::IsWithinInteractionRange() const
 {
     if (!CurrentAimTarget || !GetOwner())
@@ -364,7 +321,7 @@ void ASizeShiftGun::StartInteraction()
 
         PrintGunStatus(TEXT("INTERACT -> PICKUP / THROW"));
 
-        bInteractionStarted = StartPhysicsHold();
+        bInteractionStarted = StartPickupHold();
 
         break;
 
@@ -405,10 +362,7 @@ void ASizeShiftGun::StopInteraction()
 
     if (!ActiveInteractionTarget)
     {
-        SetGunState(
-            ESizeShiftGunState::Idle
-        );
-
+        ClearInteraction();
         return;
     }
 
@@ -419,7 +373,7 @@ void ASizeShiftGun::StopInteraction()
     {
     case EBoxInteractionType::PickupThrow:
 
-        StopPhysicsHold();
+        StopPickupHold();
 
         break;
 
@@ -434,23 +388,21 @@ void ASizeShiftGun::StopInteraction()
         break;
     }
 
-    ActiveInteractionTarget = nullptr;
-
-    SetGunState(
-        ESizeShiftGunState::Idle
-    );
+    ClearInteraction();
 }
 
 void ASizeShiftGun::SetGunState(
     ESizeShiftGunState NewState)
 {
     GunState = NewState;
+}
 
-    PrintGunStatus(
-        FString::Printf(
-            TEXT("STATE = %s"),
-            *GetGunStateName()
-        )
+void ASizeShiftGun::ClearInteraction()
+{
+    ActiveInteractionTarget = nullptr;
+
+    SetGunState(
+        ESizeShiftGunState::Idle
     );
 }
 
@@ -469,23 +421,26 @@ FString ASizeShiftGun::GetGunStateName() const
     }
 }
 
+APlayerController* ASizeShiftGun::GetPlayerController() const
+{
+    if (!GetOwner())
+    {
+        return nullptr;
+    }
+
+    return Cast<APlayerController>(
+        GetOwner()->GetInstigatorController()
+    );
+}
+
 // ============================================================
 // Pickup / Throw
 // ============================================================
 
 FVector ASizeShiftGun::GetHoldLocation() const
 {
-    if (!GetOwner())
-    {
-        return FVector::ZeroVector;
-    }
-
-    const AActor* OwnerActor = GetOwner();
-
-    const APlayerController* PlayerController =
-        Cast<APlayerController>(
-            OwnerActor->GetInstigatorController()
-        );
+    APlayerController* PlayerController =
+        GetPlayerController();
 
     if (!PlayerController)
     {
@@ -500,88 +455,234 @@ FVector ASizeShiftGun::GetHoldLocation() const
         CameraRotation
     );
 
-    FVector HoldLocation =
-        CameraLocation +
+    return CameraLocation +
         CameraRotation.Vector() * HoldDistance;
-
-    return HoldLocation;
 }
 
-bool ASizeShiftGun::StartPhysicsHold()
+void ASizeShiftGun::UpdatePickupThrow()
+{
+    if (!IsHoldingPickupThrow() ||
+        !ActiveInteractionTarget ||
+        !GetOwner())
+    {
+        return;
+    }
+
+    // ========================================================
+    // AUTO DROP
+    // ========================================================
+
+    const float DistanceFromPlayer =
+        FVector::Dist(
+            GetOwner()->GetActorLocation(),
+            ActiveInteractionTarget->GetActorLocation()
+        );
+
+    if (DistanceFromPlayer > AutoDropDistance)
+    {
+        Drop();
+        return;
+    }
+
+    // ========================================================
+    // HELD BOX MOVEMENT
+    // ========================================================
+
+    UpdateHeldBox();
+}
+
+void ASizeShiftGun::UpdateHeldBox()
+{
+    if (!ActiveInteractionTarget)
+    {
+        return;
+    }
+
+    UStaticMeshComponent* BoxMesh =
+        ActiveInteractionTarget->GetBoxMesh();
+
+    if (!BoxMesh)
+    {
+        return;
+    }
+
+    const FVector CurrentLocation =
+        BoxMesh->GetComponentLocation();
+
+    const FVector TargetLocation =
+        GetHoldLocation();
+
+    FVector MovementDelta =
+        TargetLocation - CurrentLocation;
+
+    if (MovementDelta.IsNearlyZero())
+    {
+        return;
+    }
+
+    FHitResult Hit;
+
+    // ========================================================
+    // FIRST SWEEP
+    // ========================================================
+
+    BoxMesh->MoveComponent(
+        MovementDelta,
+        HeldBoxRotation.Quaternion(),
+        true,
+        &Hit
+    );
+
+    // ========================================================
+    // SLIDE ALONG SURFACE
+    // ========================================================
+
+    if (Hit.bBlockingHit)
+    {
+        const float RemainingTime =
+            1.0f - Hit.Time;
+
+        if (RemainingTime > 0.0f)
+        {
+            const FVector RemainingMovement =
+                MovementDelta * RemainingTime;
+
+            const FVector SlideMovement =
+                FVector::VectorPlaneProject(
+                    RemainingMovement,
+                    Hit.Normal
+                );
+
+            if (!SlideMovement.IsNearlyZero())
+            {
+                FHitResult SlideHit;
+
+                BoxMesh->MoveComponent(
+                    SlideMovement,
+                    HeldBoxRotation.Quaternion(),
+                    true,
+                    &SlideHit
+                );
+            }
+        }
+    }
+}
+
+bool ASizeShiftGun::StartPickupHold()
 {
     if (!ActiveInteractionTarget)
     {
         return false;
     }
 
-    if (!PhysicsHandle)
-    {
-        return false;
-    }
-
-    UPrimitiveComponent* PrimitiveComponent =
+    UStaticMeshComponent* BoxMesh =
         ActiveInteractionTarget->GetBoxMesh();
 
-    if (!PrimitiveComponent)
+    if (!BoxMesh)
     {
         return false;
     }
 
-    if (!PrimitiveComponent->IsSimulatingPhysics())
+    if (!BoxMesh->IsSimulatingPhysics())
     {
         PrintGunStatus(
             TEXT("PHYSICS HOLD FAILED -> Physics Disabled")
         );
 
         return false;
-    }  
+    }
 
-    PrimitiveComponent->WakeAllRigidBodies();
+    APlayerController* PlayerController =
+        GetPlayerController();
 
-    const FVector GrabLocation =
-        ActiveInteractionTarget->GetActorLocation();
+    if (!PlayerController)
+    {
+        return false;
+    }
 
-    HeldBoxRotation =
-        PrimitiveComponent->GetComponentRotation();
 
-    PhysicsHandle->GrabComponentAtLocationWithRotation(
-        PrimitiveComponent,
-        NAME_None,
-        GrabLocation,
-        HeldBoxRotation
+    FVector CameraLocation;
+    FRotator CameraRotation;
+
+    PlayerController->GetPlayerViewPoint(
+        CameraLocation,
+        CameraRotation
     );
 
-    PhysicsHandle->SetTargetLocation(
-        GetHoldLocation()
+    HoldDistance = FVector::Dist(
+        CameraLocation,
+        BoxMesh->GetComponentLocation()
+    );
+
+    HeldBoxRotation =
+        BoxMesh->GetComponentRotation();
+
+    SetHeldBoxPhysics(true);
+
+    PrintGunStatus(
+        TEXT("PHYSICS HOLD -> Sweep Movement")
     );
 
     return true;
 }
 
-void ASizeShiftGun::StopPhysicsHold()
+void ASizeShiftGun::StopPickupHold()
 {
-    if (!PhysicsHandle)
+    if (!ActiveInteractionTarget)
     {
         return;
     }
 
-    UPrimitiveComponent* GrabbedComponent =
-        PhysicsHandle->GetGrabbedComponent();
+    UStaticMeshComponent* BoxMesh =
+        ActiveInteractionTarget->GetBoxMesh();
 
-    if (!GrabbedComponent)
+    if (!BoxMesh)
     {
         return;
     }
+
+    SetHeldBoxPhysics(false);
+
+    BoxMesh->WakeAllRigidBodies();
 
     HeldBoxRotation = FRotator::ZeroRotator;
-
-    PhysicsHandle->ReleaseComponent();
-
-    GrabbedComponent->WakeAllRigidBodies();
 
     PrintGunStatus(
         TEXT("PHYSICS RELEASE")
     );
+}
+
+void ASizeShiftGun::SetHeldBoxPhysics(bool bIsHeld)
+{
+    if (!ActiveInteractionTarget)
+    {
+        return;
+    }
+
+    UStaticMeshComponent* BoxMesh =
+        ActiveInteractionTarget->GetBoxMesh();
+
+    if (!BoxMesh)
+    {
+        return;
+    }
+
+    if (bIsHeld)
+    {
+        BoxMesh->SetSimulatePhysics(false);
+
+        BoxMesh->SetCollisionEnabled(
+            ECollisionEnabled::QueryOnly
+        );
+    }
+    else
+    {
+        BoxMesh->SetCollisionEnabled(
+            ECollisionEnabled::QueryAndPhysics
+        );
+
+        BoxMesh->SetSimulatePhysics(true);
+    }
 }
 
 void ASizeShiftGun::Drop()
@@ -614,33 +715,22 @@ void ASizeShiftGun::Throw()
 {
     SetThrowAimMode(false);
 
-    if (GunState != ESizeShiftGunState::Interacting)
+    if (GunState != ESizeShiftGunState::Interacting ||
+        !ActiveInteractionTarget)
     {
         return;
     }
 
-    if (!ActiveInteractionTarget)
-    {
-        return;
-    }
+    UStaticMeshComponent* BoxMesh =
+        ActiveInteractionTarget->GetBoxMesh();
 
-    if (!PhysicsHandle)
-    {
-        return;
-    }
-
-    UPrimitiveComponent* GrabbedComponent =
-        PhysicsHandle->GetGrabbedComponent();
-
-    if (!GrabbedComponent)
+    if (!BoxMesh)
     {
         return;
     }
 
     APlayerController* PlayerController =
-        Cast<APlayerController>(
-            GetOwner()->GetInstigatorController()
-        );
+        GetPlayerController();
 
     if (!PlayerController)
     {
@@ -661,16 +751,22 @@ void ASizeShiftGun::Throw()
     const FVector ThrowVelocity =
         ThrowDirection * ThrowSpeed;
 
-    PhysicsHandle->ReleaseComponent();
+    // ========================================================
+    // RESTORE PHYSICS
+    // ========================================================
 
-    HeldBoxRotation = FRotator::ZeroRotator;
+    SetHeldBoxPhysics(false);
 
-    GrabbedComponent->SetPhysicsLinearVelocity(
+    // ========================================================
+    // APPLY THROW
+    // ========================================================
+
+    BoxMesh->SetPhysicsLinearVelocity(
         ThrowVelocity,
         false
     );
 
-    GrabbedComponent->WakeAllRigidBodies();
+    BoxMesh->WakeAllRigidBodies();
 
     PrintGunStatus(
         FString::Printf(
@@ -682,11 +778,7 @@ void ASizeShiftGun::Throw()
         )
     );
 
-    ActiveInteractionTarget = nullptr;
-
-    SetGunState(
-        ESizeShiftGunState::Idle
-    );
+    ClearInteraction();
 }
 
 // ============================================================
@@ -764,14 +856,8 @@ bool ASizeShiftGun::StartPushPull()
 
 void ASizeShiftGun::UpdatePushPull(float DeltaTime)
 {
-    if (!ActiveInteractionTarget ||
+    if (!IsHoldingPushPull() ||
         !GetOwner())
-    {
-        return;
-    }
-
-    if (ActiveInteractionTarget->GetInteractionType()
-        != EBoxInteractionType::PushPull)
     {
         return;
     }
@@ -906,7 +992,6 @@ void ASizeShiftGun::UpdatePushPull(float DeltaTime)
     );
 
     UpdatePushPullFacing();
-    
 }
 
 void ASizeShiftGun::StopPushPull()
@@ -990,7 +1075,7 @@ void ASizeShiftGun::UpdatePushPullFacing()
     );
 }
 
-bool ASizeShiftGun::IsInteractingPushPull() const
+bool ASizeShiftGun::IsHoldingPushPull() const
 {
     return GunState == ESizeShiftGunState::Interacting &&
         ActiveInteractionTarget &&
@@ -1000,7 +1085,7 @@ bool ASizeShiftGun::IsInteractingPushPull() const
 
 void ASizeShiftGun::PushPullBurst()
 {
-    if (!IsInteractingPushPull() || !GetOwner())
+    if (!IsHoldingPushPull() || !GetOwner())
     {
         return;
     }
@@ -1025,14 +1110,9 @@ void ASizeShiftGun::PushPullBurst()
 
     PushDirection.Normalize();
 
-    // Stop Push/Pull before launching.
     StopPushPull();
 
-    ActiveInteractionTarget = nullptr;
-
-    SetGunState(
-        ESizeShiftGunState::Idle
-    );
+    ClearInteraction();
 
     BoxMesh->WakeAllRigidBodies();
 
@@ -1070,8 +1150,6 @@ void ASizeShiftGun::ToggleThrowAimMode()
         return;
     }
 
-    HoldDistance = DefaultHoldDistance;
-
     SetThrowAimMode(!bIsThrowAimMode);
 }
 
@@ -1091,21 +1169,37 @@ void ASizeShiftGun::TryThrow()
 void ASizeShiftGun::SetThrowAimMode(
     bool bNewThrowAimMode)
 {
-    bIsThrowAimMode = bNewThrowAimMode;
-
-    if (bIsThrowAimMode)
+    if (bIsThrowAimMode == bNewThrowAimMode)
     {
-        HoldDistance = DefaultHoldDistance - 100.0f;
+        return;
+    }
+
+    if (bNewThrowAimMode)
+    {
+        ThrowAimPreviousHoldDistance =
+            HoldDistance;
+
+        bIsThrowAimMode = true;
+
+        HoldDistance =
+            DefaultHoldDistance - 100.0f;
 
         ShowHeldBoxPreview();
     }
     else
     {
+        bIsThrowAimMode = false;
+
+        HoldDistance =
+            ThrowAimPreviousHoldDistance;
+
         HideHeldBoxPreview();
     }
 }
 
-//=============================================================
+// =============================================================
+// Show Held Box Preview
+// =============================================================
 
 void ASizeShiftGun::ShowHeldBoxPreview()
 {
@@ -1165,6 +1259,7 @@ void ASizeShiftGun::HideHeldBoxPreview()
     }
 }
 
+
 // ============================================================
 // Debug
 // ============================================================
@@ -1177,20 +1272,16 @@ void ASizeShiftGun::PrintGunStatus(
         return;
     }
 
-    FString TargetName = TEXT("None");
-
-    if (ActiveInteractionTarget)
-    {
-        TargetName = ActiveInteractionTarget->GetName();
-    }
-
-    const FString StateName = GetGunStateName();
+    const FString TargetName =
+        ActiveInteractionTarget
+        ? ActiveInteractionTarget->GetName()
+        : TEXT("None");
 
     const FString DebugMessage =
         FString::Printf(
             TEXT("[SizeShiftGun] %s | State: %s | Target: %s"),
             *Message,
-            *StateName,
+            *GetGunStateName(),
             *TargetName
         );
 

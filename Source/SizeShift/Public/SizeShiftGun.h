@@ -2,8 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "PhysicsEngine/PhysicsHandleComponent.h"
-
 #include "SizeShiftGun.generated.h"
 
 class ASizeShiftBox;
@@ -48,6 +46,8 @@ public:
 
     void Interact();
 
+    void CancelInteraction();
+
     // ============================================================
     // PICKUP / THROW
     // ============================================================
@@ -80,7 +80,7 @@ public:
 
     void TryThrow();
 
-    bool IsInteractingPushPull() const;
+    bool IsHoldingPushPull() const;
 
     void PushPullBurst();
     
@@ -100,9 +100,6 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gun")
     UStaticMeshComponent* GunMesh;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gun|Physics")
-    UPhysicsHandleComponent* PhysicsHandle;
-
     // ============================================================
     // TARGET
     // ============================================================
@@ -120,19 +117,25 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gun|State")
     ESizeShiftGunState GunState;
 
+    void SetGunState(ESizeShiftGunState NewState);
+
+    void ClearInteraction();
+
     // ============================================================
     // PICKUP / THROW
     // ============================================================
 
-    bool StartPhysicsHold();
+    bool StartPickupHold();
 
-    void StopPhysicsHold();
+    void StopPickupHold();
+
+    void UpdatePickupThrow();
+
+    void UpdateHeldBox();
+
+    void SetHeldBoxPhysics(bool bIsHeld);
 
     FVector GetHoldLocation() const;
-
-    FVector SafeHoldLocation = FVector::ZeroVector;
-
-    bool bHasSafeHoldLocation = false;
 
     // ============================================================
     // PUSH / PULL
@@ -165,13 +168,7 @@ protected:
     bool bHasPushPullDirection = false;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Push Pull")
-    float PushPullBurstDistance = 80.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Push Pull")
     float PushPullBurstImpulse = 500000.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Push Pull")
-    float MaxPushPullDistance = 450.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Push Pull")
     FRotator PushPullFacingRotationOffset =
@@ -179,13 +176,17 @@ protected:
 
     float CurrentPushPullDistance = 0.0f;
 
-    //==============================================================
+    // ==============================================================
+    // Throw Aim
+    // ==============================================================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Visual")
     FVector ThrowPreviewOffset =
         FVector(100.0f, 80.0f, -70.0f);
 
     bool bIsThrowAimMode = false;
+
+    float ThrowAimPreviousHoldDistance = 0.0f;
 
     void SetThrowAimMode(bool bNewThrowAimMode);
 
@@ -204,12 +205,6 @@ protected:
     void StopInteraction();
 
     // ============================================================
-    // STATE
-    // ============================================================
-
-    void SetGunState(ESizeShiftGunState NewState);
-
-    // ============================================================
     // DEBUG
     // ============================================================
 
@@ -217,16 +212,6 @@ protected:
     bool bEnableDebug = true;
 
     void PrintGunStatus(const FString& Message) const;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Physics")
-    float HoldSweepSafetyMargin = 8.0f;
-
-    // Uses Unreal physics force units; mass affects acceleration.
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Physics")
-    float PushableBoxForce = 100000.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Physics")
-    float PushableBoxSafetyMargin = 12.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Physics")
     float HoldDistanceStep = 25.0f;
@@ -253,4 +238,7 @@ private:
     void UpdatePushPullFacing();
 
     FRotator HeldBoxRotation = FRotator::ZeroRotator;
+
+    APlayerController* GetPlayerController() const;
+
 };
