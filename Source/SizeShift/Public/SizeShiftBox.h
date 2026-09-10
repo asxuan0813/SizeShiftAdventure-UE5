@@ -120,6 +120,22 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Box|Physics")
     float Mass = 25.0f;
 
+    // ============================================================
+    // Knockback
+    // ============================================================
+
+    UPROPERTY(EditAnywhere, Category = "Knockback")
+    float SmallToMediumHorizontalImpulse = 500.0f;
+
+    UPROPERTY(EditAnywhere, Category = "Knockback")
+    float SmallToMediumVerticalImpulse = 150.0f;
+
+    UPROPERTY(EditAnywhere, Category = "Knockback")
+    float MediumToLargeHorizontalImpulse = 900.0f;
+
+    UPROPERTY(EditAnywhere, Category = "Knockback")
+    float MediumToLargeVerticalImpulse = 250.0f;
+
 private:
 
     // ============================================================
@@ -132,7 +148,18 @@ private:
 
     float GetSizeMultiplier() const;
 
+    float GetSizeMultiplier(EBoxSizeType InSize) const;
+
     float ResolveMaterialDensity() const;
+
+    bool CanResizeTo(EBoxSizeType NewSize) const;
+
+    bool CanResizeInDirection(
+        const FVector& Direction,
+        float RequiredDistance
+    ) const;
+
+    void ApplyGrowImpact();
 
     // ============================================================
     // DEBUG

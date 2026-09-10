@@ -1,6 +1,18 @@
 #include "SizeShiftBox.h"
-
 #include "Components/StaticMeshComponent.h"
+#include "Engine/World.h"
+#include "Engine/OverlapResult.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/Character.h"
+#include "CollisionQueryParams.h"
+
+namespace
+{
+    constexpr float BaseHalfSize = 50.0f;
+
+    constexpr ECollisionChannel SizeShiftBlocker =
+        ECC_GameTraceChannel1;
+}
 
 ASizeShiftBox::ASizeShiftBox()
 {
@@ -41,9 +53,16 @@ void ASizeShiftBox::SetBoxSize(EBoxSizeType NewSize)
         return;
     }
 
+    const EBoxSizeType OldSize = SizeType;
+
     SizeType = NewSize;
 
     UpdateBoxProperties();
+
+    if (GetSizeMultiplier(NewSize) > GetSizeMultiplier(OldSize))
+    {
+        ApplyGrowImpact();
+    }
 }
 
 void ASizeShiftBox::IncreaseBoxSize()
@@ -52,20 +71,27 @@ void ASizeShiftBox::IncreaseBoxSize()
     {
     case EBoxSizeType::Small:
 
-        SetBoxSize(EBoxSizeType::Medium);
+        if (!CanResizeTo(EBoxSizeType::Medium))
+        {
+            return;
+        }
 
+        SetBoxSize(EBoxSizeType::Medium);
         break;
 
     case EBoxSizeType::Medium:
 
-        SetBoxSize(EBoxSizeType::Large);
+        if (!CanResizeTo(EBoxSizeType::Large))
+        {
+            return;
+        }
 
+        SetBoxSize(EBoxSizeType::Large);
         break;
 
     case EBoxSizeType::Large:
 
         PrintBoxStatus();
-
         break;
 
     default:
@@ -127,9 +153,190 @@ float ASizeShiftBox::GetMass() const
     return Mass;
 }
 
+bool ASizeShiftBox::CanResizeTo(EBoxSizeType NewSize) const
+{
+    const float CurrentMultiplier = GetSizeMultiplier(SizeType);
+    const float TargetMultiplier = GetSizeMultiplier(NewSize);
+
+    const float ExpansionDistance =
+        (TargetMultiplier - CurrentMultiplier) * BaseHalfSize;
+
+    if (ExpansionDistance <= 0.0f)
+    {
+        return true;
+    }
+
+    const bool bCanExpandPositiveX =
+        CanResizeInDirection(FVector::ForwardVector, ExpansionDistance);
+
+    const bool bCanExpandNegativeX =
+        CanResizeInDirection(-FVector::ForwardVector, ExpansionDistance);
+
+    const bool bCanExpandPositiveY =
+        CanResizeInDirection(FVector::RightVector, ExpansionDistance);
+
+    const bool bCanExpandNegativeY =
+        CanResizeInDirection(-FVector::RightVector, ExpansionDistance);
+
+    const bool bCanExpandPositiveZ =
+        CanResizeInDirection(FVector::UpVector, ExpansionDistance);
+
+    const bool bCanExpandNegativeZ =
+        CanResizeInDirection(-FVector::UpVector, ExpansionDistance);
+
+    const bool bXBlocked =
+        !bCanExpandPositiveX && !bCanExpandNegativeX;
+
+    const bool bYBlocked =
+        !bCanExpandPositiveY && !bCanExpandNegativeY;
+
+    const bool bZBlocked =
+        !bCanExpandPositiveZ && !bCanExpandNegativeZ;
+
+    return !bXBlocked && !bYBlocked && !bZBlocked;
+}
+
+bool ASizeShiftBox::CanResizeInDirection(
+    const FVector& Direction,
+    float RequiredDistance
+) const
+{
+    if (!GetWorld() || !BoxMesh || RequiredDistance <= 0.0f)
+    {
+        return true;
+    }
+
+    const FVector WorldDirection = Direction.GetSafeNormal();
+
+    if (WorldDirection.IsNearlyZero())
+    {
+        return true;
+    }
+
+    const float CurrentHalfSize =
+        BaseHalfSize * GetSizeMultiplier(SizeType);
+
+    const FVector LocalDirection =
+        GetActorQuat().UnrotateVector(WorldDirection).GetSafeNormal();
+
+    FVector ExpansionExtent(CurrentHalfSize);
+
+    if (!FMath::IsNearlyZero(LocalDirection.X))
+    {
+        ExpansionExtent.X = RequiredDistance * 0.5f;
+    }
+
+    if (!FMath::IsNearlyZero(LocalDirection.Y))
+    {
+        ExpansionExtent.Y = RequiredDistance * 0.5f;
+    }
+
+    if (!FMath::IsNearlyZero(LocalDirection.Z))
+    {
+        ExpansionExtent.Z = RequiredDistance * 0.5f;
+    }
+
+    const FVector LocalOffset =
+        LocalDirection *
+        (CurrentHalfSize + RequiredDistance * 0.5f);
+
+    const FVector WorldCenter =
+        GetActorLocation() +
+        GetActorQuat().RotateVector(LocalOffset);
+
+    FCollisionQueryParams QueryParams;
+    QueryParams.AddIgnoredActor(this);
+
+    const bool bBlocked =
+        GetWorld()->OverlapAnyTestByChannel(
+            WorldCenter,
+            GetActorQuat(),
+            SizeShiftBlocker,
+            FCollisionShape::MakeBox(ExpansionExtent),
+            QueryParams
+        );
+
+    return !bBlocked;
+}
+
+void ASizeShiftBox::ApplyGrowImpact()
+{
+    if (!GetWorld())
+    {
+        return;
+    }
+
+    constexpr float ImpactRadius = 150.0f;
+
+    TArray<FOverlapResult> Overlaps;
+
+    FCollisionQueryParams QueryParams;
+    QueryParams.AddIgnoredActor(this);
+
+    const bool bFoundPlayer =
+        GetWorld()->OverlapMultiByChannel(
+            Overlaps,
+            GetActorLocation(),
+            FQuat::Identity,
+            ECC_Pawn,
+            FCollisionShape::MakeSphere(ImpactRadius),
+            QueryParams
+        );
+
+    if (!bFoundPlayer)
+    {
+        return;
+    }
+
+    for (const FOverlapResult& Overlap : Overlaps)
+    {
+        ACharacter* OtherCharacter =
+            Cast<ACharacter>(Overlap.GetActor());
+
+        if (!OtherCharacter)
+        {
+            continue;
+        }
+
+        FVector KnockbackDirection =
+            OtherCharacter->GetActorLocation() - GetActorLocation();
+
+        KnockbackDirection.Normalize();
+
+        float HorizontalImpulse = 0.0f;
+        float VerticalImpulse = 0.0f;
+
+        if (SizeType == EBoxSizeType::Medium)
+        {
+            HorizontalImpulse = SmallToMediumHorizontalImpulse;
+            VerticalImpulse = SmallToMediumVerticalImpulse;
+        }
+        else if (SizeType == EBoxSizeType::Large)
+        {
+            HorizontalImpulse = MediumToLargeHorizontalImpulse;
+            VerticalImpulse = MediumToLargeVerticalImpulse;
+        }
+
+        const FVector Impulse =
+            KnockbackDirection * HorizontalImpulse
+            + FVector::UpVector * VerticalImpulse;
+
+        OtherCharacter->LaunchCharacter(
+            Impulse,
+            false,
+            false
+        );
+    }
+}
+
 float ASizeShiftBox::GetSizeMultiplier() const
 {
-    switch (SizeType)
+    return GetSizeMultiplier(SizeType);
+}
+
+float ASizeShiftBox::GetSizeMultiplier(EBoxSizeType InSize) const
+{
+    switch (InSize)
     {
     case EBoxSizeType::Small:
         return 0.49f;
@@ -141,7 +348,7 @@ float ASizeShiftBox::GetSizeMultiplier() const
         return 1.99f;
 
     default:
-        return 0.99f;
+        return 1.0f;
     }
 }
 
