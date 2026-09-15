@@ -5,6 +5,7 @@
 #include "SizeShiftGun.generated.h"
 
 class ASizeShiftBox;
+class USizeShiftUXComponent;
 
 UENUM(BlueprintType)
 enum class ESizeShiftGunState : uint8
@@ -68,6 +69,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Interaction")
     float InteractionRange = 300.0f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Size Shift")
+    float SizeShiftRange = 600.0f;
+
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Physics")
     float HoldDistance = 200.0f;
 
@@ -83,6 +87,9 @@ public:
     bool IsHoldingPushPull() const;
 
     void PushPullBurst();
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|UX")
+    float PromptHeightOffset = 100.0f;
     
 
 protected:
@@ -99,6 +106,9 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gun")
     UStaticMeshComponent* GunMesh;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gun|UX")
+    USizeShiftUXComponent* UXComponent;
 
     // ============================================================
     // TARGET
@@ -198,11 +208,34 @@ protected:
     // INTERACTION HELPERS
     // ============================================================
 
+    bool HasAimTarget() const;
+
     bool IsWithinInteractionRange() const;
 
-    void StartInteraction();
+    bool IsWithinSizeShiftRange() const;
 
+    bool CanInteractWithCurrentTarget() const;
+
+    bool CanCurrentlySizeShift() const;
+
+    void StartInteraction();
     void StopInteraction();
+
+    // ============================================================
+    // ABILITIES
+    // ============================================================
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Abilities")
+    bool bCanSizeShift = false;
+
+    UFUNCTION(BlueprintCallable, Category = "Gun|Abilities")
+    void UnlockSizeShift();
+
+    UFUNCTION(BlueprintCallable, Category = "Gun|Abilities")
+    void LockSizeShift();
+
+    UFUNCTION(BlueprintPure, Category = "Gun|Abilities")
+    bool CanSizeShift() const;
 
     // ============================================================
     // DEBUG
@@ -240,5 +273,7 @@ private:
     FRotator HeldBoxRotation = FRotator::ZeroRotator;
 
     APlayerController* GetPlayerController() const;
+
+    void RefreshUX();
 
 };

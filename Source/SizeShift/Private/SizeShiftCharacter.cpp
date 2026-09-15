@@ -11,14 +11,17 @@
 #include "InputActionValue.h"
 #include "InputMappingContext.h"
 #include "SizeShiftGun.h"
+#include "SizeShiftBox.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Blueprint/UserWidget.h"
+#include "HealthComponent.h"
+#include "SizeShiftCheckpoint.h"
 
 // Sets default values
 ASizeShiftCharacter::ASizeShiftCharacter()
 {
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 
 	FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
 
@@ -39,6 +42,11 @@ ASizeShiftCharacter::ASizeShiftCharacter()
 		FirstPersonCamera
 	);
 
+	HealthComponent =
+		CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
+
+	CurrentCheckpoint = nullptr;
+
 }
 
 void ASizeShiftCharacter::OnConstruction(const FTransform& Transform)
@@ -51,6 +59,23 @@ void ASizeShiftCharacter::OnConstruction(const FTransform& Transform)
 			SizeShiftGunClass
 		);
 	}
+}
+
+void ASizeShiftCharacter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	if (!bIsTrackingFall)
+	{
+		return;
+	}
+
+	const float CurrentZ = GetActorLocation().Z;
+
+	HighestFallZ = FMath::Max(
+		HighestFallZ,
+		CurrentZ
+	);
 }
 
 // Called when the game starts or when spawned
@@ -83,6 +108,14 @@ void ASizeShiftCharacter::BeginPlay()
 		}
 	}
 
+	if (HealthComponent)
+	{
+		HealthComponent->OnDeath.AddDynamic(
+			this,
+			&ASizeShiftCharacter::HandleDeath
+		);
+	}
+
 	if (SizeShiftGunComponent)
 	{
 		SizeShiftGun =
@@ -110,6 +143,9 @@ void ASizeShiftCharacter::BeginPlay()
 			CrosshairWidget->AddToViewport();
 		}
 	}
+
+	RespawnLocation = GetActorLocation();
+	RespawnRotation = GetActorRotation();
 }
 
 void ASizeShiftCharacter::Move(const FInputActionValue& Value)
@@ -313,6 +349,7 @@ void ASizeShiftCharacter::StopClimbing()
 		return;
 	}
 
+
 	UCharacterMovementComponent* Movement =
 		GetCharacterMovement();
 
@@ -483,6 +520,125 @@ void ASizeShiftCharacter::ExitLadderBottom()
 
 	StopClimbing();
 }
+
+void ASizeShiftCharacter::Landed(const FHitResult& Hit)
+{
+	Super::Landed(Hit);
+
+	ASizeShiftBox* LandedBox =
+		Cast<ASizeShiftBox>(Hit.GetActor());
+
+	StandingBox = LandedBox;
+
+	if (bIsTrackingFall)
+	{
+		FinishFallTracking();
+	}
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("[StandingBox] Landed | HitActor: %s | LandedBox: %s"),
+		Hit.GetActor()
+		? *Hit.GetActor()->GetName()
+		: TEXT("NULL"),
+		StandingBox
+		? *StandingBox->GetName()
+		: TEXT("NULL")
+	);
+}
+
+void ASizeShiftCharacter::OnMovementModeChanged(
+	EMovementMode PrevMovementMode,
+	uint8 PreviousCustomMode)
+{
+	Super::OnMovementModeChanged(
+		PrevMovementMode,
+		PreviousCustomMode
+	);
+
+	if (GetCharacterMovement()->MovementMode == MOVE_Falling)
+	{
+		StandingBox = nullptr;
+
+		StartFallTracking();
+	}
+}
+
+void ASizeShiftCharacter::StartFallTracking()
+{
+	if (bIsTrackingFall)
+	{
+		return;
+	}
+
+	bIsTrackingFall = true;
+
+	FallStartZ = GetActorLocation().Z;
+	HighestFallZ = FallStartZ;
+	LastFallDistance = 0.0f;
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("[Fall] START | Z: %.2f"),
+		FallStartZ
+	);
+}
+
+void ASizeShiftCharacter::FinishFallTracking()
+{
+	const float LandingZ = GetActorLocation().Z;
+
+	LastFallDistance =
+		FMath::Max(
+			0.0f,
+			HighestFallZ - LandingZ
+		);
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT(
+			"[Fall] END | StartZ: %.2f | HighestZ: %.2f | LandingZ: %.2f | Distance: %.2f"
+		),
+		FallStartZ,
+		HighestFallZ,
+		LandingZ,
+		LastFallDistance
+	);
+
+	// --------------------------------
+	// Fall Damage
+	// --------------------------------
+
+	if (LastFallDistance > SafeFallDistance)
+	{
+		if (HealthComponent)
+		{
+			HealthComponent->ApplyDamage(
+				HealthComponent->GetMaxHealth()
+			);
+		}
+
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT(
+				"[Fall Damage] FATAL | Distance: %.2f"
+			),
+			LastFallDistance
+		);
+	}
+
+	bIsTrackingFall = false;
+}
+
+ASizeShiftBox* ASizeShiftCharacter::GetStandingBox() const
+{
+	return StandingBox;
+}
+
 
 void ASizeShiftCharacter::SetMovementState(
 	EPlayerMovementState NewState)
@@ -703,3 +859,100 @@ void ASizeShiftCharacter::ToggleThrowAimMode()
 		SizeShiftGun->ToggleThrowAimMode();
 	}
 }
+
+//--------------------------------------------------------------------
+
+UHealthComponent* ASizeShiftCharacter::GetHealthComponent() const
+{
+	return HealthComponent;
+}
+
+void ASizeShiftCharacter::HandleDeath()
+{
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("[Character] HANDLE DEATH")
+	);
+
+	Respawn();
+}
+
+void ASizeShiftCharacter::Respawn()
+{
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("[Respawn] RESPawning...")
+	);
+
+	FVector TargetLocation = RespawnLocation;
+	FRotator TargetRotation = RespawnRotation;
+
+	if (CurrentCheckpoint)
+	{
+		TargetLocation =
+			CurrentCheckpoint->GetRespawnLocation();
+
+		TargetRotation =
+			CurrentCheckpoint->GetRespawnRotation();
+
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[Respawn] Using Checkpoint")
+		);
+	}
+	else
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[Respawn] Using Initial Spawn")
+		);
+	}
+
+	SetActorLocationAndRotation(
+		TargetLocation,
+		TargetRotation
+	);
+
+	GetCharacterMovement()->StopMovementImmediately();
+
+	if (HealthComponent)
+	{
+		HealthComponent->ResetHealth();
+	}
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT(
+			"[Respawn] Complete | Location: X=%.2f Y=%.2f Z=%.2f"
+		),
+		TargetLocation.X,
+		TargetLocation.Y,
+		TargetLocation.Z
+	);
+}
+
+void ASizeShiftCharacter::SetCurrentCheckpoint(
+	ASizeShiftCheckpoint* Checkpoint
+)
+{
+	if (!Checkpoint)
+	{
+		return;
+	}
+
+	CurrentCheckpoint = Checkpoint;
+
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("[Respawn] Checkpoint Updated")
+	);
+}
+
+
+

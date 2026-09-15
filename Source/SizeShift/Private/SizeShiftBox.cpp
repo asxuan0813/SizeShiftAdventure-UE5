@@ -153,6 +153,49 @@ float ASizeShiftBox::GetMass() const
     return Mass;
 }
 
+bool ASizeShiftBox::HasPushPullGroundSupport() const
+{
+    if (!GetWorld() || !BoxMesh)
+    {
+        return false;
+    }
+
+    const FVector BoxLocation =
+        BoxMesh->GetComponentLocation();
+
+    const FQuat BoxRotation =
+        BoxMesh->GetComponentQuat();
+
+    const FVector BoxExtent =
+        BoxMesh->Bounds.BoxExtent;
+
+    // Start slightly inside the box.
+    // End slightly below the box.
+    const FVector TraceStart =
+        BoxLocation;
+
+    const FVector TraceEnd =
+        BoxLocation - FVector::UpVector * 8.0f;
+
+    FCollisionQueryParams QueryParams;
+    QueryParams.AddIgnoredActor(this);
+
+    FHitResult Hit;
+
+    const bool bHit =
+        GetWorld()->SweepSingleByChannel(
+            Hit,
+            TraceStart,
+            TraceEnd,
+            BoxRotation,
+            ECC_WorldStatic,
+            FCollisionShape::MakeBox(BoxExtent),
+            QueryParams
+        );
+
+    return bHit && Hit.bBlockingHit;
+}
+
 bool ASizeShiftBox::CanResizeTo(EBoxSizeType NewSize) const
 {
     const float CurrentMultiplier = GetSizeMultiplier(SizeType);

@@ -2,11 +2,13 @@
 
 
 #include "SizeShiftGun.h"
-
+#include "SizeShiftUXComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
 #include "SizeShiftBox.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "SizeShiftCharacter.h"
 
 // Sets default values
 ASizeShiftGun::ASizeShiftGun()
@@ -18,6 +20,10 @@ ASizeShiftGun::ASizeShiftGun()
     );
 
     RootComponent = GunMesh;
+
+    UXComponent = CreateDefaultSubobject<USizeShiftUXComponent>(
+        TEXT("UXComponent")
+    );
 
     HeldBoxPreview =
         CreateDefaultSubobject<UStaticMeshComponent>(
@@ -144,23 +150,19 @@ void ASizeShiftGun::UpdateAimTarget()
     if (NewAimTarget != CurrentAimTarget)
     {
         CurrentAimTarget = NewAimTarget;
-
-        if (CurrentAimTarget)
-        {
-            PrintGunStatus(
-                FString::Printf(
-                    TEXT("AIM TARGET -> %s"),
-                    *CurrentAimTarget->GetName()
-                )
-            );
-        }
-        else
-        {
-            PrintGunStatus(
-                TEXT("AIM TARGET -> None")
-            );
-        }
     }
+
+    if (UXComponent)
+    {
+        UXComponent->UpdateTargetOutline(
+            CurrentAimTarget,
+            CanInteractWithCurrentTarget(),
+            CanCurrentlySizeShift(),
+            GunState == ESizeShiftGunState::Interacting
+        );
+    }
+
+    RefreshUX();
 }
 
 // ============================================================
@@ -169,6 +171,11 @@ void ASizeShiftGun::UpdateAimTarget()
 
 void ASizeShiftGun::IncreaseSize()
 {
+    if (!CanCurrentlySizeShift())
+    {
+        return;
+    }
+
     if (GunState == ESizeShiftGunState::Interacting)
     {
         PrintGunStatus(
@@ -178,16 +185,28 @@ void ASizeShiftGun::IncreaseSize()
         return;
     }
 
-    if (!CurrentAimTarget)
-    {
-        PrintGunStatus(
-            TEXT("INCREASE SIZE FAILED -> No Box")
-        );
-
-        return;
-    }
+    const EBoxSizeType OldSize =
+        CurrentAimTarget->GetBoxSize();
 
     CurrentAimTarget->IncreaseBoxSize();
+
+    const EBoxSizeType NewSize =
+        CurrentAimTarget->GetBoxSize();
+
+    if (OldSize != NewSize)
+    {
+        if (UXComponent)
+        {
+            UXComponent->PlaySizeShiftSound();
+        }
+    }
+    else if (OldSize == EBoxSizeType::Large)
+    {
+        if (UXComponent)
+        {
+            UXComponent->PlayInvalidActionSound();
+        }
+    }
 
     PrintGunStatus(
         FString::Printf(
@@ -199,6 +218,11 @@ void ASizeShiftGun::IncreaseSize()
 
 void ASizeShiftGun::DecreaseSize()
 {
+    if (!CanCurrentlySizeShift())
+    {
+        return;
+    }
+
     if (GunState == ESizeShiftGunState::Interacting)
     {
         PrintGunStatus(
@@ -208,16 +232,28 @@ void ASizeShiftGun::DecreaseSize()
         return;
     }
 
-    if (!CurrentAimTarget)
-    {
-        PrintGunStatus(
-            TEXT("DECREASE SIZE FAILED -> No Box")
-        );
-
-        return;
-    }
+    const EBoxSizeType OldSize =
+        CurrentAimTarget->GetBoxSize();
 
     CurrentAimTarget->DecreaseBoxSize();
+
+    const EBoxSizeType NewSize =
+        CurrentAimTarget->GetBoxSize();
+
+    if (OldSize != NewSize)
+    {
+        if (UXComponent)
+        {
+            UXComponent->PlaySizeShiftSound();
+        }
+    }
+    else if (OldSize == EBoxSizeType::Small)
+    {
+        if (UXComponent)
+        {
+            UXComponent->PlayInvalidActionSound();
+        }
+    }
 
     PrintGunStatus(
         FString::Printf(
@@ -227,52 +263,113 @@ void ASizeShiftGun::DecreaseSize()
     );
 }
 
+void ASizeShiftGun::UnlockSizeShift()
+{
+    bCanSizeShift = true;
+
+    if (UXComponent)
+    {
+        UXComponent->UpdateTargetOutline(
+            CurrentAimTarget,
+            CanInteractWithCurrentTarget(),
+            CanCurrentlySizeShift(),
+            false
+        );
+    }
+    RefreshUX();
+}
+
+void ASizeShiftGun::LockSizeShift()
+{
+    bCanSizeShift = false;
+
+    RefreshUX();
+}
+
+bool ASizeShiftGun::CanSizeShift() const
+{
+    return bCanSizeShift;
+}
+
+bool ASizeShiftGun::HasAimTarget() const
+{
+    return CurrentAimTarget != nullptr;
+}
+
+bool ASizeShiftGun::CanInteractWithCurrentTarget() const
+{
+    if (!HasAimTarget())
+    {
+        return false;
+    }
+
+    if (!IsWithinInteractionRange())
+    {
+        return false;
+    }
+
+    if (CurrentAimTarget->GetInteractionType() ==
+        EBoxInteractionType::Immovable)
+    {
+        return false;
+    }
+
+    ASizeShiftCharacter* Character =
+        Cast<ASizeShiftCharacter>(GetOwner());
+
+    if (Character &&
+        Character->GetCharacterMovement()->IsFalling())
+    {
+        return false;
+    }
+
+    if (Character &&
+        Character->GetStandingBox() == CurrentAimTarget)
+    {
+        return false;
+    }
+
+    return true;
+
+    return true;
+}
+
+bool ASizeShiftGun::CanCurrentlySizeShift() const
+{
+    return CanSizeShift() &&
+        HasAimTarget() &&
+        IsWithinSizeShiftRange();
+}
+
 // ============================================================
 // Interaction Flow
 // ============================================================
 
 void ASizeShiftGun::Interact()
 {
-    // ========================================
-    // CURRENTLY INTERACTING
-    // ========================================
-
     if (GunState == ESizeShiftGunState::Interacting)
     {
         StopInteraction();
-
         return;
     }
 
-    // ========================================
-    // NO TARGET
-    // ========================================
-
-    if (!CurrentAimTarget)
+    if (!CanInteractWithCurrentTarget())
     {
+        if (CurrentAimTarget &&
+            IsWithinInteractionRange())
+        {
+            if (UXComponent)
+            {
+                UXComponent->PlayInvalidActionSound();
+            }
+        }
+
         PrintGunStatus(
-            TEXT("INTERACT FAILED -> No Box")
+            TEXT("INTERACT FAILED -> Target unavailable")
         );
 
         return;
     }
-
-    // ========================================
-    // RANGE CHECK
-    // ========================================
-
-    if (!IsWithinInteractionRange())
-    {
-        PrintGunStatus(
-            TEXT("INTERACT FAILED -> Box is too far")
-        );
-
-        return;
-    }
-
-    // ========================================
-    // START
-    // ========================================
 
     ActiveInteractionTarget =
         CurrentAimTarget;
@@ -303,6 +400,21 @@ bool ASizeShiftGun::IsWithinInteractionRange() const
     );
 
     return Distance <= InteractionRange;
+}
+
+bool ASizeShiftGun::IsWithinSizeShiftRange() const
+{
+    if (!CurrentAimTarget || !GetOwner())
+    {
+        return false;
+    }
+
+    const float Distance = FVector::Dist(
+        GetOwner()->GetActorLocation(),
+        CurrentAimTarget->GetActorLocation()
+    );
+
+    return Distance <= SizeShiftRange;
 }
 
 void ASizeShiftGun::StartInteraction()
@@ -346,7 +458,14 @@ void ASizeShiftGun::StartInteraction()
 
     if (bInteractionStarted)
     {
-        SetGunState(ESizeShiftGunState::Interacting);
+        SetGunState(
+            ESizeShiftGunState::Interacting
+        );
+
+        if (UXComponent)
+        {
+            UXComponent->PlayInteractSound();
+        }
     }
     else
     {
@@ -778,6 +897,11 @@ void ASizeShiftGun::Throw()
         )
     );
 
+    if (UXComponent)
+    {
+        UXComponent->PlayThrowSound();
+    }
+
     ClearInteraction();
 }
 
@@ -868,6 +992,20 @@ void ASizeShiftGun::UpdatePushPull(float DeltaTime)
     if (!BoxComponent ||
         !BoxComponent->IsSimulatingPhysics())
     {
+        return;
+    }
+
+    // ========================================================
+    // CHECK GROUND SUPPORT
+    // ========================================================
+
+    if (!ActiveInteractionTarget->HasPushPullGroundSupport())
+    {
+        PrintGunStatus(
+            TEXT("PUSH/PULL AUTO RELEASE -> Box lost ground support")
+        );
+
+        StopInteraction();
         return;
     }
 
@@ -1007,8 +1145,16 @@ void ASizeShiftGun::StopPushPull()
 
         if (BoxComponent)
         {
+            const FVector CurrentVelocity =
+                BoxComponent->GetPhysicsLinearVelocity();
+
+
             BoxComponent->SetPhysicsLinearVelocity(
-                FVector::ZeroVector,
+                FVector(
+                    0.0f,
+                    0.0f,
+                    CurrentVelocity.Z
+                ),
                 false
             );
 
@@ -1119,6 +1265,11 @@ void ASizeShiftGun::PushPullBurst()
     BoxMesh->AddImpulse(
         PushDirection * PushPullBurstImpulse
     );
+
+    if (UXComponent)
+    {
+        UXComponent->PlayThrowSound();
+    }
 }
 
 // ============================================================
@@ -1255,6 +1406,111 @@ void ASizeShiftGun::HideHeldBoxPreview()
         if (RealBoxMesh)
         {
             RealBoxMesh->SetVisibility(true);
+        }
+    }
+}
+
+void ASizeShiftGun::RefreshUX()
+{
+    if (!UXComponent)
+    {
+        return;
+    }
+
+    const bool bCanInteract =
+        CanInteractWithCurrentTarget();
+
+    const bool bCanCurrentlySizeShift =
+        CanCurrentlySizeShift();
+
+    const bool bIsHolding =
+        IsHoldingPickupThrow() ||
+        IsHoldingPushPull();
+
+    // ============================================================
+    // Outline
+    // ============================================================
+
+    UXComponent->UpdateTargetOutline(
+        CurrentAimTarget,
+        bCanInteract,
+        bCanCurrentlySizeShift,
+        bIsHolding
+    );
+
+    // ============================================================
+    // Prompt
+    // ============================================================
+
+    bool bShowInteract = false;
+    bool bShowSizeUp = false;
+    bool bShowSizeDown = false;
+
+    if (GunState == ESizeShiftGunState::Idle &&
+        CurrentAimTarget &&
+        IsWithinInteractionRange())
+    {
+        switch (CurrentAimTarget->GetBoxSize())
+        {
+        case EBoxSizeType::Small:
+
+            bShowInteract = true;
+            bShowSizeUp = bCanCurrentlySizeShift;
+
+            break;
+
+        case EBoxSizeType::Medium:
+
+            bShowInteract = true;
+            bShowSizeUp = bCanCurrentlySizeShift;
+            bShowSizeDown = bCanCurrentlySizeShift;
+
+            break;
+
+        case EBoxSizeType::Large:
+
+            bShowSizeDown = bCanCurrentlySizeShift;
+
+            break;
+
+        default:
+
+            break;
+        }
+    }
+
+    UXComponent->SetPromptState(
+        bShowInteract,
+        bShowSizeUp,
+        bShowSizeDown
+    );
+
+    // ============================================================
+    // Prompt Position
+    // ============================================================
+
+    if (CurrentAimTarget)
+    {
+        APlayerController* PlayerController =
+            GetWorld()->GetFirstPlayerController();
+
+        if (PlayerController)
+        {
+            FVector WorldLocation =
+                CurrentAimTarget->GetActorLocation();
+
+            WorldLocation.Z += PromptHeightOffset;
+
+            FVector2D ScreenPosition;
+
+            if (PlayerController->ProjectWorldLocationToScreen(
+                WorldLocation,
+                ScreenPosition))
+            {
+                UXComponent->SetPromptPosition(
+                    ScreenPosition
+                );
+            }
         }
     }
 }

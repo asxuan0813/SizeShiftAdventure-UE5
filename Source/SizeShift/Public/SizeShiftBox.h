@@ -71,6 +71,10 @@ public:
         return BoxMesh;
     }
 
+    UFUNCTION(BlueprintPure, Category = "Box|Physics")
+    bool HasPushPullGroundSupport() const;
+
+
 protected:
 
     // ============================================================

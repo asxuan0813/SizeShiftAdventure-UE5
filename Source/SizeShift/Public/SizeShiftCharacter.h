@@ -13,6 +13,9 @@ class ASizeShiftGun;
 class UUserWidget;
 class UChildActorComponent;
 class ALadder;
+class ASizeShiftBox;
+class UHealthComponent;
+class ASizeShiftCheckpoint;
 
 UENUM(BlueprintType)
 enum class EPlayerMovementState : uint8
@@ -32,6 +35,8 @@ public:
 	// Sets default values for this character's properties
 	ASizeShiftCharacter();
 
+	virtual void Tick(float DeltaSeconds) override;
+
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 
@@ -47,6 +52,17 @@ public:
 	void StopClimbing();
 
 	void UpdateClimbingMovement(float InputZ);
+
+	UFUNCTION(BlueprintPure, Category = "Movement")
+	ASizeShiftBox* GetStandingBox() const;
+
+	UFUNCTION(BlueprintPure, Category = "Health")
+	UHealthComponent* GetHealthComponent() const;
+
+	UFUNCTION()
+	void HandleDeath();
+
+	void SetCurrentCheckpoint(ASizeShiftCheckpoint* Checkpoint);
 
 protected:
 
@@ -77,6 +93,13 @@ protected:
 	void ExitLadderTop();
 
 	void ExitLadderBottom();
+
+	virtual void Landed(const FHitResult& Hit) override;
+
+	virtual void OnMovementModeChanged(
+		EMovementMode PrevMovementMode,
+		uint8 PreviousCustomMode
+	) override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* FirstPersonCamera;
@@ -133,6 +156,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement")
 	EPlayerMovementState MovementState = EPlayerMovementState::Normal;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement")
+	ASizeShiftBox* StandingBox = nullptr;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
 	float SprintSpeed = 900.0f;
 
@@ -149,11 +175,44 @@ protected:
 
 	float OriginalGravityScale = 1.0f;
 
+	// Fall Detection
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement|Fall")
+	bool bIsTrackingFall = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement|Fall")
+	float FallStartZ = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement|Fall")
+	float LastFallDistance = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement|Fall")
+	float HighestFallZ = 0.0f;
+
+	void StartFallTracking();
+	void FinishFallTracking();
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Health")
+	UHealthComponent* HealthComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Fall Damage")
+	float SafeFallDistance = 300.0f;
+
 	void AdjustHoldDistance(
 		const struct FInputActionValue& Value
 	);
 
 	void ToggleThrowAimMode();
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Respawn")
+    FVector RespawnLocation;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Respawn")
+    FRotator RespawnRotation;
+
+    void Respawn();
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Respawn")
+	ASizeShiftCheckpoint* CurrentCheckpoint;
 
 	
 };
