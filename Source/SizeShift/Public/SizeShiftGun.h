@@ -205,7 +205,7 @@ protected:
     void HideHeldBoxPreview();
 
     // ============================================================
-    // INTERACTION HELPERS
+     // INTERACTION HELPERS
     // ============================================================
 
     bool HasAimTarget() const;

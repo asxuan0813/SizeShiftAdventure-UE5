@@ -391,7 +391,7 @@ float ASizeShiftBox::GetSizeMultiplier(EBoxSizeType InSize) const
         return 1.99f;
 
     default:
-        return 1.0f;
+        return 0.99f;
     }
 }
 
