@@ -8,7 +8,7 @@ class ASizeShiftBox;
 class USizeShiftUXComponent;
 
 UENUM(BlueprintType)
-enum class ESizeShiftGunState : uint8
+enum class E_SizeShiftGunState : uint8
 {
     Idle,
     Interacting
@@ -64,21 +64,21 @@ public:
     // ============================================================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Target")
-    float TargetTraceDistance = 1000.0f;
+    float _TargetTraceDistance = 1000.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Interaction")
-    float InteractionRange = 300.0f;
+    float _InteractionRange = 300.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Size Shift")
-    float SizeShiftRange = 600.0f;
+    float _SizeShiftRange = 600.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Physics")
-    float HoldDistance = 200.0f;
+    float _HoldDistance = 200.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Physics")
-    float ThrowSpeed = 1200.0f;
+    float _ThrowSpeed = 1200.0f;
 
-    void AdjustHoldDistance(float ScrollValue);
+    void AdjustHoldDistance(float scrollValue);
 
     void ToggleThrowAimMode();
 
@@ -89,8 +89,7 @@ public:
     void PushPullBurst();
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|UX")
-    float PromptHeightOffset = 100.0f;
-    
+    float _PromptHeightOffset = 30.0f;
 
 protected:
 
@@ -105,29 +104,29 @@ protected:
     // ============================================================
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gun")
-    UStaticMeshComponent* GunMesh;
+    UStaticMeshComponent* _GunMesh;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gun|UX")
-    USizeShiftUXComponent* UXComponent;
+    USizeShiftUXComponent* _UXComponent;
 
     // ============================================================
     // TARGET
     // ============================================================
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gun|Target")
-    ASizeShiftBox* CurrentAimTarget;
+    ASizeShiftBox* _CurrentAimTarget;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gun|Interaction")
-    ASizeShiftBox* ActiveInteractionTarget;
+    ASizeShiftBox* _ActiveInteractionTarget;
 
     // ============================================================
     // STATE
     // ============================================================
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gun|State")
-    ESizeShiftGunState GunState;
+    E_SizeShiftGunState _GunState;
 
-    void SetGunState(ESizeShiftGunState NewState);
+    void SetGunState(E_SizeShiftGunState newState);
 
     void ClearInteraction();
 
@@ -143,7 +142,7 @@ protected:
 
     void UpdateHeldBox();
 
-    void SetHeldBoxPhysics(bool bIsHeld);
+    void SetHeldBoxPhysics(bool isHeld);
 
     FVector GetHoldLocation() const;
 
@@ -152,53 +151,53 @@ protected:
     // ============================================================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Push Pull")
-    float PushPullDistance = 150.0f;
+    float _PushPullDistance = 150.0f;
 
     bool StartPushPull();
 
-    void UpdatePushPull(float DeltaTime);
+    void UpdatePushPull(float deltaTime);
 
     void StopPushPull();
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Push Pull")
-    float PushPullFollowSpeed = 700.0f;
+    float _PushPullFollowSpeed = 700.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Push Pull")
-    float PushPullVelocityInterpSpeed = 6.0f;
+    float _PushPullVelocityInterpSpeed = 6.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Push Pull")
-    float PushPullDeadZone = 5.0f;
+    float _PushPullDeadZone = 5.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Push Pull")
-    float PushPullDirectionInterpSpeed = 5.0f;
+    float _PushPullDirectionInterpSpeed = 5.0f;
 
-    FVector SmoothedPushPullDirection =
+    FVector _SmoothedPushPullDirection =
         FVector::ZeroVector;
 
-    bool bHasPushPullDirection = false;
+    bool _HasPushPullDirection = false;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Push Pull")
-    float PushPullBurstImpulse = 500000.0f;
+    float _PushPullBurstImpulse = 500000.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Push Pull")
-    FRotator PushPullFacingRotationOffset =
+    FRotator _PushPullFacingRotationOffset =
         FRotator::ZeroRotator;
 
-    float CurrentPushPullDistance = 0.0f;
+    float _CurrentPushPullDistance = 0.0f;
 
     // ==============================================================
     // Throw Aim
     // ==============================================================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Visual")
-    FVector ThrowPreviewOffset =
+    FVector _ThrowPreviewOffset =
         FVector(100.0f, 80.0f, -70.0f);
 
-    bool bIsThrowAimMode = false;
+    bool _IsThrowAimMode = false;
 
-    float ThrowAimPreviousHoldDistance = 0.0f;
+    float _ThrowAimPreviousHoldDistance = 0.0f;
 
-    void SetThrowAimMode(bool bNewThrowAimMode);
+    void SetThrowAimMode(bool newThrowAimMode);
 
     void ShowHeldBoxPreview();
 
@@ -226,7 +225,7 @@ protected:
     // ============================================================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Abilities")
-    bool bCanSizeShift = false;
+    bool _CanSizeShift = false;
 
     UFUNCTION(BlueprintCallable, Category = "Gun|Abilities")
     void UnlockSizeShift();
@@ -242,26 +241,26 @@ protected:
     // ============================================================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Debug")
-    bool bEnableDebug = true;
+    bool _EnableDebug = true;
 
-    void PrintGunStatus(const FString& Message) const;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Physics")
-    float HoldDistanceStep = 25.0f;
+    void PrintGunStatus(const FString& message) const;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Physics")
-    float MinHoldDistance = 100.0f;
+    float _HoldDistanceStep = 25.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Physics")
-    float MaxHoldDistance = 500.0f;
+    float _MinHoldDistance = 100.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Physics")
-    float AutoDropDistance = 650.0f;
+    float _MaxHoldDistance = 500.0f;
 
-    float DefaultHoldDistance = 0.0f;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gun|Physics")
+    float _AutoDropDistance = 650.0f;
+
+    float _DefaultHoldDistance = 0.0f;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gun|Visual")
-    UStaticMeshComponent* HeldBoxPreview;
+    UStaticMeshComponent* _HeldBoxPreview;
 
 
 private:
@@ -270,10 +269,9 @@ private:
 
     void UpdatePushPullFacing();
 
-    FRotator HeldBoxRotation = FRotator::ZeroRotator;
+    FRotator _HeldBoxRotation = FRotator::ZeroRotator;
 
     APlayerController* GetPlayerController() const;
 
     void RefreshUX();
-
 };

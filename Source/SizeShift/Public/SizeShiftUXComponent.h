@@ -21,24 +21,25 @@ public:
 	USizeShiftUXComponent();
 
 	void UpdateTargetOutline(
-		ASizeShiftBox* NewTarget,
-		bool bCanInteract,
-		bool bCanSizeShift,
-		bool bIsHolding
+		ASizeShiftBox* newTarget,
+		bool canInteract,
+		bool canSizeShift,
+		bool isHolding
 	);
 
 	void SetPromptState(
-		bool bShowInteract,
-		bool bShowSizeUp,
-		bool bShowSizeDown
+		bool showInteract,
+		bool showSizeUp,
+		bool showSizeDown
 	);
 
-	void SetPromptPosition(FVector2D ScreenPosition);
+	void SetPromptPosition(FVector2D screenPosition);
 
 	void PlaySizeShiftSound();
 	void PlayInteractSound();
 	void PlayThrowSound();
 	void PlayInvalidActionSound();
+	void PlayDeathSound();
 
 protected:
 	
@@ -49,40 +50,45 @@ private:
 
 	void ClearCurrentOutline();
 
-	void ApplyOutlineMaterial(UMaterialInterface* NewMaterial);
+	void ApplyOutlineMaterial(UMaterialInterface* newMaterial);
 
 private:
 
-	ASizeShiftBox* CurrentOutlineTarget = nullptr;
+	ASizeShiftBox* _CurrentOutlineTarget = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "UX|Outline")
-	UMaterialInterface* NormalOutlineMaterial = nullptr;
+	UMaterialInterface* _NormalOutlineMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "UX|Outline")
-	UMaterialInterface* InteractOutlineMaterial = nullptr;
+	UMaterialInterface* _InteractOutlineMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "UX|Outline")
-	UMaterialInterface* SizeShiftOutlineMaterial = nullptr;
+	UMaterialInterface* _SizeShiftOutlineMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "UX|Outline")
-	UMaterialInterface* HoldingOutlineMaterial = nullptr;
+	UMaterialInterface* _HoldingOutlineMaterial = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "UX|Prompt")
-	TSubclassOf<USizeShiftPromptWidget> PromptWidgetClass;
+	TSubclassOf<USizeShiftPromptWidget> _PromptWidgetClass;
 
 	UPROPERTY()
-	USizeShiftPromptWidget* PromptWidget = nullptr;
+	USizeShiftPromptWidget* _PromptWidget = nullptr;
+
+	// SFX
 
 	UPROPERTY(EditAnywhere, Category = "UX|SFX")
-	USoundBase* SizeShiftSound = nullptr;
+	USoundBase* _SizeShiftSound = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "UX|SFX")
-	USoundBase* InteractSound = nullptr;
+	USoundBase* _InteractSound = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "UX|SFX")
-	USoundBase* ThrowSound = nullptr;
+	USoundBase* _ThrowSound = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "UX|SFX")
-	USoundBase* InvalidActionSound = nullptr;
+	USoundBase* _InvalidActionSound = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "UX|SFX")
+	USoundBase* _DeathSound = nullptr;
 
 };

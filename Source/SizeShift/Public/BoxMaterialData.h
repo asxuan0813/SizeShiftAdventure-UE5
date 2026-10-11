@@ -4,7 +4,7 @@
 #include "BoxMaterialData.generated.h"
 
 USTRUCT(BlueprintType)
-struct FBoxMaterialData
+struct F_BoxMaterialData
 {
     GENERATED_BODY()
 
@@ -15,28 +15,28 @@ public:
     // ========================================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics")
-    float Density = 1.0f;
+    float _Density = 1.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics")
-    float Friction = 0.5f;
+    float _Friction = 0.5f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics")
-    float Restitution = 0.2f;
+    float _Restitution = 0.2f;
 
     // ========================================
     // GAMEPLAY
     // ========================================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gameplay")
-    float PushResistance = 1.0f;
+    float _PushResistance = 1.0f;
 
     // ========================================
     // FUTURE
     // ========================================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gameplay")
-    bool bCanBreak = false;
+    bool _CanBreak = false;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gameplay")
-    bool bCanConductLaser = false;
+    bool _CanConductLaser = false;
 };

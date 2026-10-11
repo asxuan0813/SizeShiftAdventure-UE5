@@ -13,8 +13,8 @@ class SIZESHIFT_API UBoxMaterialDataAsset : public UDataAsset
 public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Material")
-    FName MaterialName = TEXT("Default");
+    FName _MaterialName = TEXT("Default");
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Material")
-    FBoxMaterialData MaterialData;
+    F_BoxMaterialData _MaterialProperties;
 };

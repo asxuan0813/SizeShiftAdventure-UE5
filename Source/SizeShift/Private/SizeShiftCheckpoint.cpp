@@ -7,33 +7,33 @@ ASizeShiftCheckpoint::ASizeShiftCheckpoint()
 {
     PrimaryActorTick.bCanEverTick = false;
 
-    Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
-    SetRootComponent(Root);
+    _Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+    SetRootComponent(_Root);
 
-    RespawnPoint =
+    _RespawnPoint =
         CreateDefaultSubobject<UArrowComponent>(TEXT("RespawnPoint"));
 
-    RespawnPoint->SetupAttachment(Root);
+    _RespawnPoint->SetupAttachment(_Root);
 
-    Trigger =
+    _Trigger =
         CreateDefaultSubobject<UBoxComponent>(TEXT("Trigger"));
 
-    Trigger->SetupAttachment(Root);
+    _Trigger->SetupAttachment(_Root);
 
-    Trigger->SetCollisionEnabled(
+    _Trigger->SetCollisionEnabled(
         ECollisionEnabled::QueryOnly
     );
 
-    Trigger->SetCollisionResponseToAllChannels(
+    _Trigger->SetCollisionResponseToAllChannels(
         ECR_Ignore
     );
 
-    Trigger->SetCollisionResponseToChannel(
+    _Trigger->SetCollisionResponseToChannel(
         ECC_Pawn,
         ECR_Overlap
     );
 
-    Trigger->OnComponentBeginOverlap.AddDynamic(
+    _Trigger->OnComponentBeginOverlap.AddDynamic(
         this,
         &ASizeShiftCheckpoint::OnCheckpointBeginOverlap
     );
@@ -41,32 +41,32 @@ ASizeShiftCheckpoint::ASizeShiftCheckpoint()
 
 FVector ASizeShiftCheckpoint::GetRespawnLocation() const
 {
-    return RespawnPoint->GetComponentLocation();
+    return _RespawnPoint->GetComponentLocation();
 }
 
 FRotator ASizeShiftCheckpoint::GetRespawnRotation() const
 {
-    return RespawnPoint->GetComponentRotation();
+    return _RespawnPoint->GetComponentRotation();
 }
 
 void ASizeShiftCheckpoint::OnCheckpointBeginOverlap(
-    UPrimitiveComponent* OverlappedComponent,
-    AActor* OtherActor,
-    UPrimitiveComponent* OtherComp,
-    int32 OtherBodyIndex,
-    bool bFromSweep,
-    const FHitResult& SweepResult
+    UPrimitiveComponent* overlappedComponent,
+    AActor* otherActor,
+    UPrimitiveComponent* otherComp,
+    int32 otherBodyIndex,
+    bool fromSweep,
+    const FHitResult& sweepResult
 )
 {
-    ASizeShiftCharacter* Character =
-        Cast<ASizeShiftCharacter>(OtherActor);
+    ASizeShiftCharacter* character =
+        Cast<ASizeShiftCharacter>(otherActor);
 
-    if (!Character)
+    if (!character)
     {
         return;
     }
 
-    Character->SetCurrentCheckpoint(this);
+    character->SetCurrentCheckpoint(this);
 
     UE_LOG(
         LogTemp,

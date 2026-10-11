@@ -16,6 +16,7 @@
 #include "Blueprint/UserWidget.h"
 #include "HealthComponent.h"
 #include "SizeShiftCheckpoint.h"
+#include "SizeShiftUXComponent.h"
 
 // Sets default values
 ASizeShiftCharacter::ASizeShiftCharacter()
@@ -23,29 +24,33 @@ ASizeShiftCharacter::ASizeShiftCharacter()
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-	FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
+	_FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
 
-	FirstPersonCamera->SetupAttachment(GetCapsuleComponent());
+	_FirstPersonCamera->SetupAttachment(GetCapsuleComponent());
 
-	FirstPersonCamera->SetRelativeLocation(
+	_FirstPersonCamera->SetRelativeLocation(
 		FVector(0.0f, 0.0f, 64.0f)
 	);
 
-	FirstPersonCamera->bUsePawnControlRotation = true;
+	_FirstPersonCamera->bUsePawnControlRotation = true;
 
-	SizeShiftGunComponent =
+	_SizeShiftGunComponent =
 		CreateDefaultSubobject<UChildActorComponent>(
 			TEXT("SizeShiftGun")
 		);
 
-	SizeShiftGunComponent->SetupAttachment(
-		FirstPersonCamera
+	_SizeShiftGunComponent->SetupAttachment(
+		_FirstPersonCamera
 	);
 
-	HealthComponent =
+	_UXComponent = CreateDefaultSubobject<USizeShiftUXComponent>(
+		TEXT("UXComponent")
+	);
+
+	_HealthComponent =
 		CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
 
-	CurrentCheckpoint = nullptr;
+	_CurrentCheckpoint = nullptr;
 
 }
 
@@ -53,10 +58,10 @@ void ASizeShiftCharacter::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	if (SizeShiftGunComponent && SizeShiftGunClass)
+	if (_SizeShiftGunComponent && _SizeShiftGunClass)
 	{
-		SizeShiftGunComponent->SetChildActorClass(
-			SizeShiftGunClass
+		_SizeShiftGunComponent->SetChildActorClass(
+			_SizeShiftGunClass
 		);
 	}
 }
@@ -65,16 +70,16 @@ void ASizeShiftCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (!bIsTrackingFall)
+	if (!_IsTrackingFall)
 	{
 		return;
 	}
 
-	const float CurrentZ = GetActorLocation().Z;
+	const float currentZ = GetActorLocation().Z;
 
-	HighestFallZ = FMath::Max(
-		HighestFallZ,
-		CurrentZ
+	_HighestFallZ = FMath::Max(
+		_HighestFallZ,
+		currentZ
 	);
 }
 
@@ -83,9 +88,9 @@ void ASizeShiftCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	OriginalCameraLocation = FirstPersonCamera->GetRelativeLocation();
+	_OriginalCameraLocation = _FirstPersonCamera->GetRelativeLocation();
 
-	OriginalWalkSpeed =
+	_OriginalWalkSpeed =
 		GetCharacterMovement()->MaxWalkSpeed;
 
 	if (GetCharacterMovement())
@@ -93,94 +98,94 @@ void ASizeShiftCharacter::BeginPlay()
 		GetCharacterMovement()->bEnablePhysicsInteraction = false;
 	}
 
-	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+	if (APlayerController* playerController = Cast<APlayerController>(GetController()))
 	{
-		if (ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer())
+		if (ULocalPlayer* localPlayer = playerController->GetLocalPlayer())
 		{
-			if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
-				LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+			if (UEnhancedInputLocalPlayerSubsystem* subsystem =
+				localPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
 			{
-				if (DefaultMappingContext)
+				if (_DefaultMappingContext)
 				{
-					Subsystem->AddMappingContext(DefaultMappingContext, 0);
+					subsystem->AddMappingContext(_DefaultMappingContext, 0);
 				}
 			}
 		}
 	}
 
-	if (HealthComponent)
+	if (_HealthComponent)
 	{
-		HealthComponent->OnDeath.AddDynamic(
+		_HealthComponent->_OnDeath.AddDynamic(
 			this,
 			&ASizeShiftCharacter::HandleDeath
 		);
 	}
 
-	if (SizeShiftGunComponent)
+	if (_SizeShiftGunComponent)
 	{
-		SizeShiftGun =
+		_SizeShiftGun =
 			Cast<ASizeShiftGun>(
-				SizeShiftGunComponent->GetChildActor()
+				_SizeShiftGunComponent->GetChildActor()
 			);
 	}
 
-	if (SizeShiftGun)
+	if (_SizeShiftGun)
 	{
-		SizeShiftGun->SetOwner(this);
-		SizeShiftGun->SetInstigator(this);
+		_SizeShiftGun->SetOwner(this);
+		_SizeShiftGun->SetInstigator(this);
 	}
 
-	if (CrosshairWidgetClass)
+	if (_CrosshairWidgetClass)
 	{
-		CrosshairWidget =
+		_CrosshairWidget =
 			CreateWidget<UUserWidget>(
 				GetWorld(),
-				CrosshairWidgetClass
+				_CrosshairWidgetClass
 			);
 
-		if (CrosshairWidget)
+		if (_CrosshairWidget)
 		{
-			CrosshairWidget->AddToViewport();
+			_CrosshairWidget->AddToViewport();
 		}
 	}
 
-	RespawnLocation = GetActorLocation();
-	RespawnRotation = GetActorRotation();
+	_RespawnLocation = GetActorLocation();
+	_RespawnRotation = GetActorRotation();
 }
 
-void ASizeShiftCharacter::Move(const FInputActionValue& Value)
+void ASizeShiftCharacter::Move(const FInputActionValue& value)
 {
-	const FVector2D MovementVector =
-		Value.Get<FVector2D>();
+	const FVector2D movementVector =
+		value.Get<FVector2D>();
 
-	if (MovementState == EPlayerMovementState::Climbing)
+	if (_MovementState == E_PlayerMovementState::Climbing)
 	{
-		UpdateClimbingMovement(MovementVector.Y);
+		UpdateClimbingMovement(movementVector.Y);
 		return;
 	}
 
 	AddMovementInput(
 		GetActorForwardVector(),
-		MovementVector.Y
+		movementVector.Y
 	);
 
 	AddMovementInput(
 		GetActorRightVector(),
-		MovementVector.X
+		movementVector.X
 	);
 }
 
-void ASizeShiftCharacter::Look(const FInputActionValue& Value)
+void ASizeShiftCharacter::Look(const FInputActionValue& value)
 {
-	FVector2D LookAxisVector = Value.Get<FVector2D>();
+	FVector2D lookAxisVector = value.Get<FVector2D>();
 
-	AddControllerYawInput(LookAxisVector.X);
-	AddControllerPitchInput(LookAxisVector.Y);
+	AddControllerYawInput(lookAxisVector.X);
+	AddControllerPitchInput(lookAxisVector.Y);
 }
 
 void ASizeShiftCharacter::Jump()
 {
-	if (MovementState == EPlayerMovementState::Climbing)
+	if (_MovementState == E_PlayerMovementState::Climbing)
 	{
 		return;
 	}
@@ -190,74 +195,74 @@ void ASizeShiftCharacter::Jump()
 
 void ASizeShiftCharacter::ToggleCrouch()
 {
-	if (MovementState == EPlayerMovementState::Climbing)
+	if (_MovementState == E_PlayerMovementState::Climbing)
 	{
 		return;
 	}
 
-	if (MovementState == EPlayerMovementState::Sprinting)
+	if (_MovementState == E_PlayerMovementState::Sprinting)
 	{
 		StopSprint();
 	}
 
-	if (MovementState == EPlayerMovementState::Crouching)
+	if (_MovementState == E_PlayerMovementState::Crouching)
 	{
 		UnCrouch();
 
-		FirstPersonCamera->SetRelativeLocation(
-			OriginalCameraLocation
+		_FirstPersonCamera->SetRelativeLocation(
+			_OriginalCameraLocation
 		);
 
-		SetMovementState(EPlayerMovementState::Normal);
+		SetMovementState(E_PlayerMovementState::Normal);
 	}
 	else
 	{
 		Crouch();
 
-		FVector CameraLocation =
-			FirstPersonCamera->GetRelativeLocation();
+		FVector cameraLocation =
+			_FirstPersonCamera->GetRelativeLocation();
 
-		CameraLocation.Z = 40.0f;
+		cameraLocation.Z = 40.0f;
 
-		FirstPersonCamera->SetRelativeLocation(
-			CameraLocation
+		_FirstPersonCamera->SetRelativeLocation(
+			cameraLocation
 		);
 
-		SetMovementState(EPlayerMovementState::Crouching);
+		SetMovementState(E_PlayerMovementState::Crouching);
 	}
 }
 
 void ASizeShiftCharacter::StartSprint()
 {
-	if (MovementState == EPlayerMovementState::Crouching)
+	if (_MovementState == E_PlayerMovementState::Crouching)
 	{
 		UnCrouch();
-		FirstPersonCamera->SetRelativeLocation(OriginalCameraLocation);
+		_FirstPersonCamera->SetRelativeLocation(_OriginalCameraLocation);
 	}
 
-	if (MovementState == EPlayerMovementState::Climbing)
+	if (_MovementState == E_PlayerMovementState::Climbing)
 	{
 		return;
 	}
 
-	SetMovementState(EPlayerMovementState::Sprinting);
+	SetMovementState(E_PlayerMovementState::Sprinting);
 
-	GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
+	GetCharacterMovement()->MaxWalkSpeed = _SprintSpeed;
 }
 
 void ASizeShiftCharacter::StopSprint()
 {
-	if (MovementState != EPlayerMovementState::Sprinting)
+	if (_MovementState != E_PlayerMovementState::Sprinting)
 	{
 		return;
 	}
 
-	SetMovementState(EPlayerMovementState::Normal);
+	SetMovementState(E_PlayerMovementState::Normal);
 
-	GetCharacterMovement()->MaxWalkSpeed = OriginalWalkSpeed;
+	GetCharacterMovement()->MaxWalkSpeed = _OriginalWalkSpeed;
 }
 
-void ASizeShiftCharacter::StartClimbing(ALadder* Ladder)
+void ASizeShiftCharacter::StartClimbing(ALadder* ladder)
 {
 	UE_LOG(
 		LogTemp,
@@ -266,73 +271,73 @@ void ASizeShiftCharacter::StartClimbing(ALadder* Ladder)
 		*GetActorLocation().ToString()
 	);
 
-	if (!Ladder)
+	if (!ladder)
 	{
 		return;
 	}
 
-	if (MovementState == EPlayerMovementState::Climbing)
+	if (_MovementState == E_PlayerMovementState::Climbing)
 	{
 		return;
 	}
 
-	if (SizeShiftGun)
+	if (_SizeShiftGun)
 	{
-		SizeShiftGun->CancelInteraction();
+		_SizeShiftGun->CancelInteraction();
 	}
 
-	CurrentLadder = Ladder;
+	_CurrentLadder = ladder;
 
-	const FTransform LadderTransform =
-		Ladder->GetActorTransform();
+	const FTransform ladderTransform =
+		ladder->GetActorTransform();
 
-	FVector LocalLocation =
-		LadderTransform.InverseTransformPosition(
+	FVector localLocation =
+		ladderTransform.InverseTransformPosition(
 			GetActorLocation()
 		);
 
 	// Keep current height, only align horizontally.
-	LocalLocation.X = -50.0f;
-	LocalLocation.Y = 50.0f;
+	localLocation.X = -50.0f;
+	localLocation.Y = 50.0f;
 
-	const FVector AlignedLocation =
-		LadderTransform.TransformPosition(
-			LocalLocation
+	const FVector alignedLocation =
+		ladderTransform.TransformPosition(
+			localLocation
 		);
 
 	SetActorLocation(
-		AlignedLocation,
+		alignedLocation,
 		false
 	);
 
-	UCharacterMovementComponent* Movement =
+	UCharacterMovementComponent* movement =
 		GetCharacterMovement();
 
-	OriginalMovementMode = Movement->MovementMode;
-	OriginalGravityScale = Movement->GravityScale;
+	_OriginalMovementMode = movement->MovementMode;
+	_OriginalGravityScale = movement->GravityScale;
 
 	// Stop any existing movement
-	Movement->Velocity = FVector::ZeroVector;
+	movement->Velocity = FVector::ZeroVector;
 
 	// Cancel sprint / crouch
-	if (MovementState == EPlayerMovementState::Sprinting)
+	if (_MovementState == E_PlayerMovementState::Sprinting)
 	{
-		Movement->MaxWalkSpeed = OriginalWalkSpeed;
+		movement->MaxWalkSpeed = _OriginalWalkSpeed;
 	}
 
-	if (MovementState == EPlayerMovementState::Crouching)
+	if (_MovementState == E_PlayerMovementState::Crouching)
 	{
 		UnCrouch();
 
-		FirstPersonCamera->SetRelativeLocation(
-			OriginalCameraLocation
+		_FirstPersonCamera->SetRelativeLocation(
+			_OriginalCameraLocation
 		);
 	}
 
-	SetMovementState(EPlayerMovementState::Climbing);
+	SetMovementState(E_PlayerMovementState::Climbing);
 
-	Movement->GravityScale = 0.0f;
-	Movement->SetMovementMode(MOVE_Flying);
+	movement->GravityScale = 0.0f;
+	movement->SetMovementMode(MOVE_Flying);
 }
 
 void ASizeShiftCharacter::StopClimbing()
@@ -344,129 +349,129 @@ void ASizeShiftCharacter::StopClimbing()
 		*GetActorLocation().ToString()
 	);
 
-	if (MovementState != EPlayerMovementState::Climbing)
+	if (_MovementState != E_PlayerMovementState::Climbing)
 	{
 		return;
 	}
 
 
-	UCharacterMovementComponent* Movement =
+	UCharacterMovementComponent* movement =
 		GetCharacterMovement();
 
-	Movement->Velocity = FVector::ZeroVector;
+	movement->Velocity = FVector::ZeroVector;
 
-	Movement->GravityScale = OriginalGravityScale;
-	Movement->SetMovementMode(OriginalMovementMode);
+	movement->GravityScale = _OriginalGravityScale;
+	movement->SetMovementMode(_OriginalMovementMode);
 
-	CurrentLadder = nullptr;
+	_CurrentLadder = nullptr;
 
-	SetMovementState(EPlayerMovementState::Normal);
+	SetMovementState(E_PlayerMovementState::Normal);
 }
 
 void ASizeShiftCharacter::StopClimbingMovement()
 {
-	if (MovementState != EPlayerMovementState::Climbing)
+	if (_MovementState != E_PlayerMovementState::Climbing)
 	{
 		return;
 	}
 
-	FVector Velocity = GetCharacterMovement()->Velocity;
+	FVector velocity = GetCharacterMovement()->Velocity;
 
-	Velocity.Z = 0.0f;
+	velocity.Z = 0.0f;
 
-	GetCharacterMovement()->Velocity = Velocity;
+	GetCharacterMovement()->Velocity = velocity;
 }
 
-void ASizeShiftCharacter::UpdateClimbingMovement(float InputZ)
+void ASizeShiftCharacter::UpdateClimbingMovement(float inputZ)
 {
-	if (!CurrentLadder)
+	if (!_CurrentLadder)
 	{
 		return;
 	}
 
-	const FTransform LadderTransform =
-		CurrentLadder->GetActorTransform();
+	const FTransform ladderTransform =
+		_CurrentLadder->GetActorTransform();
 
-	const FVector LocalLocation =
-		LadderTransform.InverseTransformPosition(
+	const FVector localLocation =
+		ladderTransform.InverseTransformPosition(
 			GetActorLocation()
 		);
 
-	const float LadderHeight =
-		CurrentLadder->GetLadderHeight();
+	const float ladderHeight =
+		_CurrentLadder->GetLadderHeight();
 
-	const float PlayerHalfHeight =
+	const float playerHalfHeight =
 		GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 
-	const float MinZ = PlayerHalfHeight;
+	const float minZ = playerHalfHeight;
 
-	const float BottomThreshold = 1.0f;
-	const float TopThreshold = 1.0f;
+	const float bottomThreshold = 1.0f;
+	const float topThreshold = 1.0f;
 
-	const float MaxZ = LadderHeight + PlayerHalfHeight;
+	const float maxZ = ladderHeight + playerHalfHeight;
 
 	// Bottom
-	if (LocalLocation.Z <= MinZ + BottomThreshold &&
-		InputZ < 0.0f)
+	if (localLocation.Z <= minZ + bottomThreshold &&
+		inputZ < 0.0f)
 	{
 		ExitLadderBottom();
 		return;
 	}
 
 	// Top
-	if (LocalLocation.Z >= MaxZ - TopThreshold &&
-		InputZ > 0.0f)
+	if (localLocation.Z >= maxZ - topThreshold &&
+		inputZ > 0.0f)
 	{
 		ExitLadderTop();
 		return;
 	}
 
-	if (FMath::IsNearlyZero(InputZ))
+	if (FMath::IsNearlyZero(inputZ))
 	{
 		GetCharacterMovement()->Velocity.Z = 0.0f;
 		return;
 	}
 
-	FVector Velocity =
+	FVector velocity =
 		GetCharacterMovement()->Velocity;
 
-	Velocity.X = 0.0f;
-	Velocity.Y = 0.0f;
-	Velocity.Z = InputZ * ClimbSpeed;
+	velocity.X = 0.0f;
+	velocity.Y = 0.0f;
+	velocity.Z = inputZ * _ClimbSpeed;
 
-	GetCharacterMovement()->Velocity = Velocity;
+	GetCharacterMovement()->Velocity = velocity;
 }
 
 void ASizeShiftCharacter::ExitLadderTop()
 {
-	if (!CurrentLadder)
+	if (!_CurrentLadder)
 	{
 		return;
 	}
 
-	const FTransform LadderTransform =
-		CurrentLadder->GetActorTransform();
+	const FTransform ladderTransform =
+		_CurrentLadder->GetActorTransform();
 
-	const float LadderHeight =
-		CurrentLadder->GetLadderHeight();
+	const float ladderHeight =
+		_CurrentLadder->GetLadderHeight();
 
-	const float PlayerHalfHeight =
+	const float playerHalfHeight =
 		GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 
 	// Move the player onto the top platform.
-	const FVector LocalExitLocation(
+	const FVector localExitLocation(
 		10.0f,
 		50.0f,
-		LadderHeight + PlayerHalfHeight
+		ladderHeight + playerHalfHeight
 	);
 
-	const FVector ExitLocation =
-		LadderTransform.TransformPosition(
-			LocalExitLocation
+	const FVector exitLocation =
+		ladderTransform.TransformPosition(
+			localExitLocation
 		);
 
 	SetActorLocation(
-		ExitLocation,
+		exitLocation,
 		false
 	);
 
@@ -475,7 +480,7 @@ void ASizeShiftCharacter::ExitLadderTop()
 
 void ASizeShiftCharacter::ExitLadderBottom()
 {
-	if (!CurrentLadder)
+	if (!_CurrentLadder)
 	{
 		UE_LOG(
 			LogTemp,
@@ -492,45 +497,45 @@ void ASizeShiftCharacter::ExitLadderBottom()
 		TEXT("BOTTOM EXIT FUNCTION CALLED")
 	);
 
-	const FTransform LadderTransform =
-		CurrentLadder->GetActorTransform();
+	const FTransform ladderTransform =
+		_CurrentLadder->GetActorTransform();
 
-	const float PlayerHalfHeight =
+	const float playerHalfHeight =
 		GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 
-	const FVector LocalExitLocation(
+	const FVector localExitLocation(
 		-150.0f,
 		50.0f,
-		PlayerHalfHeight
+		playerHalfHeight
 	);
 
-	const FVector ExitLocation =
-		LadderTransform.TransformPosition(
-			LocalExitLocation
+	const FVector exitLocation =
+		ladderTransform.TransformPosition(
+			localExitLocation
 		);
 
 	UE_LOG(
 		LogTemp,
 		Warning,
 		TEXT("BOTTOM EXIT LOCATION: %s"),
-		*ExitLocation.ToString()
+		*exitLocation.ToString()
 	);
 
-	SetActorLocation(ExitLocation, false);
+	SetActorLocation(exitLocation, false);
 
 	StopClimbing();
 }
 
-void ASizeShiftCharacter::Landed(const FHitResult& Hit)
+void ASizeShiftCharacter::Landed(const FHitResult& hit)
 {
-	Super::Landed(Hit);
+	Super::Landed(hit);
 
-	ASizeShiftBox* LandedBox =
-		Cast<ASizeShiftBox>(Hit.GetActor());
+	ASizeShiftBox* landedBox =
+		Cast<ASizeShiftBox>(hit.GetActor());
 
-	StandingBox = LandedBox;
+	_StandingBox = landedBox;
 
-	if (bIsTrackingFall)
+	if (_IsTrackingFall)
 	{
 		FinishFallTracking();
 	}
@@ -539,27 +544,27 @@ void ASizeShiftCharacter::Landed(const FHitResult& Hit)
 		LogTemp,
 		Warning,
 		TEXT("[StandingBox] Landed | HitActor: %s | LandedBox: %s"),
-		Hit.GetActor()
-		? *Hit.GetActor()->GetName()
+		hit.GetActor()
+		? *hit.GetActor()->GetName()
 		: TEXT("NULL"),
-		StandingBox
-		? *StandingBox->GetName()
+		_StandingBox
+		? *_StandingBox->GetName()
 		: TEXT("NULL")
 	);
 }
 
 void ASizeShiftCharacter::OnMovementModeChanged(
-	EMovementMode PrevMovementMode,
-	uint8 PreviousCustomMode)
+	EMovementMode prevMovementMode,
+	uint8 previousCustomMode)
 {
 	Super::OnMovementModeChanged(
-		PrevMovementMode,
-		PreviousCustomMode
+		prevMovementMode,
+		previousCustomMode
 	);
 
 	if (GetCharacterMovement()->MovementMode == MOVE_Falling)
 	{
-		StandingBox = nullptr;
+		_StandingBox = nullptr;
 
 		StartFallTracking();
 	}
@@ -567,33 +572,33 @@ void ASizeShiftCharacter::OnMovementModeChanged(
 
 void ASizeShiftCharacter::StartFallTracking()
 {
-	if (bIsTrackingFall)
+	if (_IsTrackingFall)
 	{
 		return;
 	}
 
-	bIsTrackingFall = true;
+	_IsTrackingFall = true;
 
-	FallStartZ = GetActorLocation().Z;
-	HighestFallZ = FallStartZ;
-	LastFallDistance = 0.0f;
+	_FallStartZ = GetActorLocation().Z;
+	_HighestFallZ = _FallStartZ;
+	_LastFallDistance = 0.0f;
 
 	UE_LOG(
 		LogTemp,
 		Warning,
 		TEXT("[Fall] START | Z: %.2f"),
-		FallStartZ
+		_FallStartZ
 	);
 }
 
 void ASizeShiftCharacter::FinishFallTracking()
 {
-	const float LandingZ = GetActorLocation().Z;
+	const float landingZ = GetActorLocation().Z;
 
-	LastFallDistance =
+	_LastFallDistance =
 		FMath::Max(
 			0.0f,
-			HighestFallZ - LandingZ
+			_HighestFallZ - landingZ
 		);
 
 	UE_LOG(
@@ -602,22 +607,22 @@ void ASizeShiftCharacter::FinishFallTracking()
 		TEXT(
 			"[Fall] END | StartZ: %.2f | HighestZ: %.2f | LandingZ: %.2f | Distance: %.2f"
 		),
-		FallStartZ,
-		HighestFallZ,
-		LandingZ,
-		LastFallDistance
+		_FallStartZ,
+		_HighestFallZ,
+		landingZ,
+		_LastFallDistance
 	);
 
 	// --------------------------------
 	// Fall Damage
 	// --------------------------------
 
-	if (LastFallDistance > SafeFallDistance)
+	if (_LastFallDistance > _SafeFallDistance)
 	{
-		if (HealthComponent)
+		if (_HealthComponent)
 		{
-			HealthComponent->ApplyDamage(
-				HealthComponent->GetMaxHealth()
+			_HealthComponent->ApplyDamage(
+				_HealthComponent->GetMaxHealth()
 			);
 		}
 
@@ -627,28 +632,27 @@ void ASizeShiftCharacter::FinishFallTracking()
 			TEXT(
 				"[Fall Damage] FATAL | Distance: %.2f"
 			),
-			LastFallDistance
+			_LastFallDistance
 		);
 	}
 
-	bIsTrackingFall = false;
+	_IsTrackingFall = false;
 }
 
 ASizeShiftBox* ASizeShiftCharacter::GetStandingBox() const
 {
-	return StandingBox;
+	return _StandingBox;
 }
-
 
 void ASizeShiftCharacter::SetMovementState(
-	EPlayerMovementState NewState)
+	E_PlayerMovementState newState)
 {
-	MovementState = NewState;
+	_MovementState = newState;
 }
 
-EPlayerMovementState ASizeShiftCharacter::GetMovementState() const
+E_PlayerMovementState ASizeShiftCharacter::GetMovementState() const
 {
-	return MovementState;
+	return _MovementState;
 }
 
 // Called to bind functionality to input
@@ -656,64 +660,64 @@ void ASizeShiftCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	if (UEnhancedInputComponent* EnhancedInputComponent =
+	if (UEnhancedInputComponent* enhancedInputComponent =
 		Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
-		if (MoveAction)
+		if (_MoveAction)
 		{
-			EnhancedInputComponent->BindAction(
-				MoveAction,
+			enhancedInputComponent->BindAction(
+				_MoveAction,
 				ETriggerEvent::Triggered,
 				this,
 				&ASizeShiftCharacter::Move
 			);
 
-			EnhancedInputComponent->BindAction(
-				MoveAction,
+			enhancedInputComponent->BindAction(
+				_MoveAction,
 				ETriggerEvent::Completed,
 				this,
 				&ASizeShiftCharacter::StopClimbingMovement
 			);
 		}
 
-		if (LookAction)
+		if (_LookAction)
 		{
-			EnhancedInputComponent->BindAction(
-				LookAction,
+			enhancedInputComponent->BindAction(
+				_LookAction,
 				ETriggerEvent::Triggered,
 				this,
 				&ASizeShiftCharacter::Look
 			);
 		}
 
-		if (JumpAction)
+		if (_JumpAction)
 		{
-			EnhancedInputComponent->BindAction(
-				JumpAction,
+			enhancedInputComponent->BindAction(
+				_JumpAction,
 				ETriggerEvent::Started,
 				this,
 				&ASizeShiftCharacter::Jump
 			);
 
-			EnhancedInputComponent->BindAction(
-				JumpAction,
+			enhancedInputComponent->BindAction(
+				_JumpAction,
 				ETriggerEvent::Completed,
 				this,
 				&ACharacter::StopJumping
 			);
 		}
 		
-		if (SprintAction)
+		if (_SprintAction)
 		{
-			EnhancedInputComponent->BindAction(
-				SprintAction,
+			enhancedInputComponent->BindAction(
+				_SprintAction,
 				ETriggerEvent::Started,
 				this,
 				&ASizeShiftCharacter::StartSprint
 			);
 
-			EnhancedInputComponent->BindAction(
-				SprintAction,
+			enhancedInputComponent->BindAction(
+				_SprintAction,
 				ETriggerEvent::Completed,
 				this,
 				&ASizeShiftCharacter::StopSprint
@@ -721,60 +725,60 @@ void ASizeShiftCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 		}
 		
 
-		if (CrouchAction)
+		if (_CrouchAction)
 		{
-			EnhancedInputComponent->BindAction(
-				CrouchAction,
+			enhancedInputComponent->BindAction(
+				_CrouchAction,
 				ETriggerEvent::Started,
 				this,
 				&ASizeShiftCharacter::ToggleCrouch
 			);
 		}
 
-		if (SizeUpAction)
+		if (_SizeUpAction)
 		{
-			EnhancedInputComponent->BindAction(
-				SizeUpAction,
+			enhancedInputComponent->BindAction(
+				_SizeUpAction,
 				ETriggerEvent::Started,
 				this,
 				&ASizeShiftCharacter::IncreaseSize
 			);
 		}
 
-		if (SizeDownAction)
+		if (_SizeDownAction)
 		{
-			EnhancedInputComponent->BindAction(
-				SizeDownAction,
+			enhancedInputComponent->BindAction(
+				_SizeDownAction,
 				ETriggerEvent::Started,
 				this,
 				&ASizeShiftCharacter::DecreaseSize
 			);
 		}
 
-		if (InteractAction)
+		if (_InteractAction)
 		{
-			EnhancedInputComponent->BindAction(
-				InteractAction,
+			enhancedInputComponent->BindAction(
+				_InteractAction,
 				ETriggerEvent::Started,
 				this,
 				&ASizeShiftCharacter::Interact
 			);
 		}
 
-		if (AdjustHoldDistanceAction)
+		if (_AdjustHoldDistanceAction)
 		{
-			EnhancedInputComponent->BindAction(
-				AdjustHoldDistanceAction,
+			enhancedInputComponent->BindAction(
+				_AdjustHoldDistanceAction,
 				ETriggerEvent::Triggered,
 				this,
 				&ASizeShiftCharacter::AdjustHoldDistance
 			);
 		}
 
-		if (HoldBoxAsideAction)
+		if (_HoldBoxAsideAction)
 		{
-			EnhancedInputComponent->BindAction(
-				HoldBoxAsideAction,
+			enhancedInputComponent->BindAction(
+				_HoldBoxAsideAction,
 				ETriggerEvent::Started,
 				this,
 				&ASizeShiftCharacter::ToggleThrowAimMode
@@ -787,76 +791,76 @@ void ASizeShiftCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 
 void ASizeShiftCharacter::IncreaseSize()
 {
-	if (!SizeShiftGun)
+	if (!_SizeShiftGun)
 	{
 		return;
 	}
 
-	if (SizeShiftGun->IsHoldingPickupThrow())
+	if (_SizeShiftGun->IsHoldingPickupThrow())
 	{
-		SizeShiftGun->TryThrow();
+		_SizeShiftGun->TryThrow();
 		return;
 	}
 
-	if (SizeShiftGun->IsHoldingPushPull())
+	if (_SizeShiftGun->IsHoldingPushPull())
 	{
-		SizeShiftGun->PushPullBurst();
+		_SizeShiftGun->PushPullBurst();
 
 		return;
 	}
 
-	SizeShiftGun->IncreaseSize();
+	_SizeShiftGun->IncreaseSize();
 }
 
 void ASizeShiftCharacter::DecreaseSize()
 {
-	if (!SizeShiftGun)
+	if (!_SizeShiftGun)
 	{
 		return;
 	}
 
-	if (SizeShiftGun->IsHoldingPickupThrow())
+	if (_SizeShiftGun->IsHoldingPickupThrow())
 	{
 		
 		return;
 	}
 
-	SizeShiftGun->DecreaseSize();
+	_SizeShiftGun->DecreaseSize();
 }
 
 void ASizeShiftCharacter::Interact()
 {
-	if (!SizeShiftGun)
+	if (!_SizeShiftGun)
 	{
 		return;
 	}
 
-	if (MovementState == EPlayerMovementState::Climbing)
+	if (_MovementState == E_PlayerMovementState::Climbing)
 	{
 		return;
 	}
 
-	SizeShiftGun->Interact();
+	_SizeShiftGun->Interact();
 }
 
 //------------------------------------------------------------------
 
 void ASizeShiftCharacter::AdjustHoldDistance(
-	const FInputActionValue& Value)
+	const FInputActionValue& value)
 {
-	if (SizeShiftGun)
+	if (_SizeShiftGun)
 	{
-		SizeShiftGun->AdjustHoldDistance(
-			Value.Get<float>()
+		_SizeShiftGun->AdjustHoldDistance(
+			value.Get<float>()
 		);
 	}
 }
 
 void ASizeShiftCharacter::ToggleThrowAimMode()
 {
-	if (SizeShiftGun)
+	if (_SizeShiftGun)
 	{
-		SizeShiftGun->ToggleThrowAimMode();
+		_SizeShiftGun->ToggleThrowAimMode();
 	}
 }
 
@@ -864,16 +868,21 @@ void ASizeShiftCharacter::ToggleThrowAimMode()
 
 UHealthComponent* ASizeShiftCharacter::GetHealthComponent() const
 {
-	return HealthComponent;
+	return _HealthComponent;
 }
 
 void ASizeShiftCharacter::HandleDeath()
 {
+	if (_UXComponent)
+	{
+		_UXComponent->PlayDeathSound();
+	}
+
 	UE_LOG(
 		LogTemp,
 		Warning,
 		TEXT("[Character] HANDLE DEATH")
-	);
+	);	
 
 	Respawn();
 }
@@ -886,16 +895,16 @@ void ASizeShiftCharacter::Respawn()
 		TEXT("[Respawn] RESPawning...")
 	);
 
-	FVector TargetLocation = RespawnLocation;
-	FRotator TargetRotation = RespawnRotation;
+	FVector targetLocation = _RespawnLocation;
+	FRotator targetRotation = _RespawnRotation;
 
-	if (CurrentCheckpoint)
+	if (_CurrentCheckpoint)
 	{
-		TargetLocation =
-			CurrentCheckpoint->GetRespawnLocation();
+		targetLocation =
+			_CurrentCheckpoint->GetRespawnLocation();
 
-		TargetRotation =
-			CurrentCheckpoint->GetRespawnRotation();
+		targetRotation =
+			_CurrentCheckpoint->GetRespawnRotation();
 
 		UE_LOG(
 			LogTemp,
@@ -913,15 +922,15 @@ void ASizeShiftCharacter::Respawn()
 	}
 
 	SetActorLocationAndRotation(
-		TargetLocation,
-		TargetRotation
+		targetLocation,
+		targetRotation
 	);
 
 	GetCharacterMovement()->StopMovementImmediately();
 
-	if (HealthComponent)
+	if (_HealthComponent)
 	{
-		HealthComponent->ResetHealth();
+		_HealthComponent->ResetHealth();
 	}
 
 	UE_LOG(
@@ -930,22 +939,22 @@ void ASizeShiftCharacter::Respawn()
 		TEXT(
 			"[Respawn] Complete | Location: X=%.2f Y=%.2f Z=%.2f"
 		),
-		TargetLocation.X,
-		TargetLocation.Y,
-		TargetLocation.Z
+		targetLocation.X,
+		targetLocation.Y,
+		targetLocation.Z
 	);
 }
 
 void ASizeShiftCharacter::SetCurrentCheckpoint(
-	ASizeShiftCheckpoint* Checkpoint
+	ASizeShiftCheckpoint* checkpoint
 )
 {
-	if (!Checkpoint)
+	if (!checkpoint)
 	{
 		return;
 	}
 
-	CurrentCheckpoint = Checkpoint;
+	_CurrentCheckpoint = checkpoint;
 
 	UE_LOG(
 		LogTemp,
@@ -953,6 +962,3 @@ void ASizeShiftCharacter::SetCurrentCheckpoint(
 		TEXT("[Respawn] Checkpoint Updated")
 	);
 }
-
-
-

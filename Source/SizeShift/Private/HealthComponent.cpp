@@ -10,12 +10,12 @@ void UHealthComponent::BeginPlay()
     Super::BeginPlay();
 
     // Initialize current health from the final MaxHealth value.
-    CurrentHealth = MaxHealth;
+    _CurrentHealth = _MaxHealth;
 }
 
-void UHealthComponent::ApplyDamage(float DamageAmount)
+void UHealthComponent::ApplyDamage(float damageAmount)
 {
-    if (DamageAmount <= 0.0f)
+    if (damageAmount <= 0.0f)
     {
         return;
     }
@@ -25,22 +25,22 @@ void UHealthComponent::ApplyDamage(float DamageAmount)
         return;
     }
 
-    CurrentHealth = FMath::Clamp(
-        CurrentHealth - DamageAmount,
+    _CurrentHealth = FMath::Clamp(
+        _CurrentHealth - damageAmount,
         0.0f,
-        MaxHealth
+        _MaxHealth
     );
 
     UE_LOG(
         LogTemp,
         Warning,
         TEXT("[Health] Damage: %.2f | Health: %.2f / %.2f"),
-        DamageAmount,
-        CurrentHealth,
-        MaxHealth
+        damageAmount,
+        _CurrentHealth,
+        _MaxHealth
     );
 
-    if (CurrentHealth <= 0.0f)
+    if (_CurrentHealth <= 0.0f)
     {
         UE_LOG(
             LogTemp,
@@ -48,13 +48,13 @@ void UHealthComponent::ApplyDamage(float DamageAmount)
             TEXT("[Health] DEATH")
         );
 
-        OnDeath.Broadcast();
+        _OnDeath.Broadcast();
     }
 }
 
-void UHealthComponent::Heal(float HealAmount)
+void UHealthComponent::Heal(float healAmount)
 {
-    if (HealAmount <= 0.0f)
+    if (healAmount <= 0.0f)
     {
         return;
     }
@@ -64,46 +64,46 @@ void UHealthComponent::Heal(float HealAmount)
         return;
     }
 
-    CurrentHealth = FMath::Clamp(
-        CurrentHealth + HealAmount,
+    _CurrentHealth = FMath::Clamp(
+        _CurrentHealth + healAmount,
         0.0f,
-        MaxHealth
+        _MaxHealth
     );
 
     UE_LOG(
         LogTemp,
         Warning,
         TEXT("[Health] Heal: %.2f | Health: %.2f / %.2f"),
-        HealAmount,
-        CurrentHealth,
-        MaxHealth
+        healAmount,
+        _CurrentHealth,
+        _MaxHealth
     );
 }
 
 float UHealthComponent::GetCurrentHealth() const
 {
-    return CurrentHealth;
+    return _CurrentHealth;
 }
 
 float UHealthComponent::GetMaxHealth() const
 {
-    return MaxHealth;
+    return _MaxHealth;
 }
 
 bool UHealthComponent::IsDead() const
 {
-    return CurrentHealth <= 0.0f;
+    return _CurrentHealth <= 0.0f;
 }
 
 void UHealthComponent::ResetHealth()
 {
-    CurrentHealth = MaxHealth;
+    _CurrentHealth = _MaxHealth;
 
     UE_LOG(
         LogTemp,
         Warning,
         TEXT("[Health] RESET | Health: %.2f / %.2f"),
-        CurrentHealth,
-        MaxHealth
+        _CurrentHealth,
+        _MaxHealth
     );
 }

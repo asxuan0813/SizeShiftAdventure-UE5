@@ -13,18 +13,18 @@ void USizeShiftUXComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (PromptWidgetClass)
+	if (_PromptWidgetClass)
     {
-        PromptWidget = CreateWidget<USizeShiftPromptWidget>(
+        _PromptWidget = CreateWidget<USizeShiftPromptWidget>(
             GetWorld(),
-            PromptWidgetClass
+            _PromptWidgetClass
         );
 
-        if (PromptWidget)
+        if (_PromptWidget)
         {
-            PromptWidget->AddToViewport();
+            _PromptWidget->AddToViewport();
 
-            PromptWidget->SetPromptState(
+            _PromptWidget->SetPromptState(
                 false,
                 false,
                 false
@@ -34,162 +34,175 @@ void USizeShiftUXComponent::BeginPlay()
 }
 
 void USizeShiftUXComponent::UpdateTargetOutline(
-    ASizeShiftBox* NewTarget,
-    bool bCanInteract,
-    bool bCanSizeShift,
-    bool bIsHolding)
+    ASizeShiftBox* newTarget,
+    bool canInteract,
+    bool canSizeShift,
+    bool isHolding)
 {
-    if (!NewTarget)
+    if (!newTarget)
     {
         ClearCurrentOutline();
         return;
     }
 
-    UMaterialInterface* DesiredMaterial = nullptr;
+    UMaterialInterface* desiredMaterial = nullptr;
 
     // Highest priority: Holding
-    if (bIsHolding)
+    if (isHolding)
     {
-        DesiredMaterial = HoldingOutlineMaterial;
+        desiredMaterial = _HoldingOutlineMaterial;
     }
     // Can interact
-    else if (bCanInteract)
+    else if (canInteract)
     {
-        DesiredMaterial = InteractOutlineMaterial;
+        desiredMaterial = _InteractOutlineMaterial;
     }
     // Can size shift
-    else if (bCanSizeShift)
+    else if (canSizeShift)
     {
-        DesiredMaterial = SizeShiftOutlineMaterial;
+        desiredMaterial = _SizeShiftOutlineMaterial;
     }
     // Normal target
     else
     {
-        DesiredMaterial = NormalOutlineMaterial;
+        desiredMaterial = _NormalOutlineMaterial;
     }
 
-    if (CurrentOutlineTarget != NewTarget)
+    if (_CurrentOutlineTarget != newTarget)
     {
         ClearCurrentOutline();
 
-        CurrentOutlineTarget = NewTarget;
+        _CurrentOutlineTarget = newTarget;
     }
 
-    ApplyOutlineMaterial(DesiredMaterial);
+    ApplyOutlineMaterial(desiredMaterial);
 }
 
 void USizeShiftUXComponent::ApplyOutlineMaterial(
-    UMaterialInterface* NewMaterial)
+    UMaterialInterface* newMaterial)
 {
-    if (!CurrentOutlineTarget)
+    if (!_CurrentOutlineTarget)
     {
         return;
     }
 
-    UStaticMeshComponent* BoxMesh =
-        CurrentOutlineTarget->GetBoxMesh();
+    UStaticMeshComponent* boxMesh =
+        _CurrentOutlineTarget->GetBoxMesh();
 
-    if (!BoxMesh)
+    if (!boxMesh)
     {
         return;
     }
 
-    BoxMesh->SetOverlayMaterial(NewMaterial);
+    boxMesh->SetOverlayMaterial(newMaterial);
 }
 
 void USizeShiftUXComponent::ClearCurrentOutline()
 {
-    if (!CurrentOutlineTarget)
+    if (!_CurrentOutlineTarget)
     {
         return;
     }
 
-    if (UStaticMeshComponent* BoxMesh =
-        CurrentOutlineTarget->GetBoxMesh())
+    if (UStaticMeshComponent* boxMesh =
+        _CurrentOutlineTarget->GetBoxMesh())
     {
-        BoxMesh->SetOverlayMaterial(nullptr);
+        boxMesh->SetOverlayMaterial(nullptr);
     }
 
-    CurrentOutlineTarget = nullptr;
+    _CurrentOutlineTarget = nullptr;
 }
 
 void USizeShiftUXComponent::SetPromptState(
-    bool bShowInteract,
-    bool bShowSizeUp,
-    bool bShowSizeDown)
+    bool showInteract,
+    bool showSizeUp,
+    bool showSizeDown)
 {
-    if (!PromptWidget)
+    if (!_PromptWidget)
     {
         return;
     }
 
-    PromptWidget->SetPromptState(
-        bShowInteract,
-        bShowSizeUp,
-        bShowSizeDown
+    _PromptWidget->SetPromptState(
+        showInteract,
+        showSizeUp,
+        showSizeDown
     );
 }
 
 void USizeShiftUXComponent::SetPromptPosition(
-    FVector2D ScreenPosition)
+    FVector2D screenPosition)
 {
-    if (!PromptWidget)
+    if (!_PromptWidget)
     {
         return;
     }
 
-    PromptWidget->SetPromptPosition(ScreenPosition);
+    _PromptWidget->SetPromptPosition(screenPosition);
 }
 
 void USizeShiftUXComponent::PlaySizeShiftSound()
 {
-    if (!SizeShiftSound)
+    if (!_SizeShiftSound)
     {
         return;
     }
 
     UGameplayStatics::PlaySound2D(
         GetWorld(),
-        SizeShiftSound
+        _SizeShiftSound
     );
 }
 
 void USizeShiftUXComponent::PlayInteractSound()
 {
-    if (!InteractSound)
+    if (!_InteractSound)
     {
         return;
     }
 
     UGameplayStatics::PlaySound2D(
         GetWorld(),
-        InteractSound
+        _InteractSound
     );
 }
 
 void USizeShiftUXComponent::PlayThrowSound()
 {
-    if (!ThrowSound)
+    if (!_ThrowSound)
     {
         return;
     }
 
     UGameplayStatics::PlaySound2D(
         GetWorld(),
-        ThrowSound
+        _ThrowSound
     );
 }
 
 void USizeShiftUXComponent::PlayInvalidActionSound()
 {
-    if (!InvalidActionSound)
+    if (!_InvalidActionSound)
     {
         return;
     }
 
     UGameplayStatics::PlaySound2D(
         GetWorld(),
-        InvalidActionSound
+        _InvalidActionSound
+    );
+}
+
+void USizeShiftUXComponent::PlayDeathSound()
+{
+    if (!_DeathSound)
+    {
+        return;
+    }
+
+    UGameplayStatics::PlaySound2D(
+        GetWorld(),
+        _DeathSound
     );
 }
 

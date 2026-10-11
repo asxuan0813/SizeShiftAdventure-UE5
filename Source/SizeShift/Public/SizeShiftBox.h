@@ -10,7 +10,7 @@
 class UStaticMeshComponent;
 
 UENUM(BlueprintType)
-enum class EBoxSizeType : uint8
+enum class E_BoxSizeType : uint8
 {
     Small,
     Medium,
@@ -18,7 +18,7 @@ enum class EBoxSizeType : uint8
 };
 
 UENUM(BlueprintType)
-enum class EBoxInteractionType : uint8
+enum class E_BoxInteractionType : uint8
 {
     PickupThrow UMETA(DisplayName = "Pickup / Throw"),
     PushPull    UMETA(DisplayName = "Push / Pull"),
@@ -39,7 +39,7 @@ public:
     // ============================================================
 
     UFUNCTION(BlueprintCallable, Category = "Box")
-    void SetBoxSize(EBoxSizeType NewSize);
+    void SetBoxSize(E_BoxSizeType newSize);
 
     UFUNCTION(BlueprintCallable, Category = "Box")
     void IncreaseBoxSize();
@@ -52,10 +52,10 @@ public:
     // ============================================================
 
     UFUNCTION(BlueprintPure, Category = "Box")
-    EBoxSizeType GetBoxSize() const;
+    E_BoxSizeType GetBoxSize() const;
 
     UFUNCTION(BlueprintPure, Category = "Box")
-    EBoxInteractionType GetInteractionType() const;
+    E_BoxInteractionType GetInteractionType() const;
 
     UFUNCTION(BlueprintPure, Category = "Box|Physics")
     float GetVolume() const;
@@ -68,7 +68,7 @@ public:
 
     UStaticMeshComponent* GetBoxMesh() const
     {
-        return BoxMesh;
+        return _BoxMesh;
     }
 
     UFUNCTION(BlueprintPure, Category = "Box|Physics")
@@ -90,55 +90,55 @@ protected:
     // ============================================================
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Box")
-    UStaticMeshComponent* BoxMesh;
+    UStaticMeshComponent* _BoxMesh;
 
     // ============================================================
     // Editable Configuration
     // ============================================================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Box")
-    EBoxSizeType SizeType = EBoxSizeType::Small;
+    E_BoxSizeType _SizeType = E_BoxSizeType::Small;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Box|Material")
-    TObjectPtr<UBoxMaterialDataAsset> MaterialData;
+    TObjectPtr<UBoxMaterialDataAsset> _MaterialData;
 
     // Physics Configuration
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Box|Physics")
-    float BaseVolume = 1.0f;
+    float _BaseVolume = 1.0f;
 
     // ============================================================
     // Calculated Runtime Data
     // ============================================================
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Box")
-    EBoxInteractionType InteractionType =
-        EBoxInteractionType::PickupThrow;
+    E_BoxInteractionType _InteractionType =
+        E_BoxInteractionType::PickupThrow;
 
     // Calculated Physics Values (Read Only)
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Box|Physics")
-    float Volume = 0.125f;
+    float _Volume = 0.125f;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Box|Physics")
-    float Density = 200.0f;
+    float _Density = 200.0f;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Box|Physics")
-    float Mass = 25.0f;
+    float _Mass = 25.0f;
 
     // ============================================================
     // Knockback
     // ============================================================
 
     UPROPERTY(EditAnywhere, Category = "Knockback")
-    float SmallToMediumHorizontalImpulse = 500.0f;
+    float _SmallToMediumHorizontalImpulse = 500.0f;
 
     UPROPERTY(EditAnywhere, Category = "Knockback")
-    float SmallToMediumVerticalImpulse = 150.0f;
+    float _SmallToMediumVerticalImpulse = 150.0f;
 
     UPROPERTY(EditAnywhere, Category = "Knockback")
-    float MediumToLargeHorizontalImpulse = 900.0f;
+    float _MediumToLargeHorizontalImpulse = 900.0f;
 
     UPROPERTY(EditAnywhere, Category = "Knockback")
-    float MediumToLargeVerticalImpulse = 250.0f;
+    float _MediumToLargeVerticalImpulse = 250.0f;
 
 private:
 
@@ -150,17 +150,17 @@ private:
 
     void UpdateInteractionType();
 
-    float GetSizeMultiplier() const;
+    float GetCurrentSizeMultiplier() const;
 
-    float GetSizeMultiplier(EBoxSizeType InSize) const;
+    float GetSizeMultiplier(E_BoxSizeType inSize) const;
 
     float ResolveMaterialDensity() const;
 
-    bool CanResizeTo(EBoxSizeType NewSize) const;
+    bool CanResizeTo(E_BoxSizeType newSize) const;
 
     bool CanResizeInDirection(
-        const FVector& Direction,
-        float RequiredDistance
+        const FVector& direction,
+        float requiredDistance
     ) const;
 
     void ApplyGrowImpact();
@@ -170,5 +170,4 @@ private:
     // ============================================================
 
     void PrintBoxStatus() const;
-
 };

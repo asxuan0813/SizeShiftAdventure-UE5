@@ -34,34 +34,46 @@ public:
 	FVector GetTopExitLocation() const;
 	FVector GetBottomExitLocation() const;
 
+	UPROPERTY(EditAnywhere, Category = "Ladder|Climb Volume")
+	float _ClimbVolumeOffsetX = -40.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Ladder|Climb Volume")
+	float _ClimbVolumeOffsetY = 45.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Ladder|Climb Volume")
+	float _ClimbVolumeExtentX = 25.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Ladder|Climb Volume")
+	float _ClimbVolumeExtentY = 60.0f;
+
 private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Ladder")
-	TObjectPtr<UInstancedStaticMeshComponent> LadderMesh;
+	TObjectPtr<UInstancedStaticMeshComponent> _LadderMesh;
 
 	UPROPERTY(VisibleAnywhere, Category = "Ladder")
-	TObjectPtr<UBoxComponent> ClimbVolume;
+	TObjectPtr<UBoxComponent> _ClimbVolume;
 
 	UPROPERTY(EditAnywhere, Category = "Ladder")
-	TObjectPtr<UStaticMesh> LadderMeshAsset;
+	TObjectPtr<UStaticMesh> _LadderMeshAsset;
 
 	UPROPERTY(EditAnywhere, Category = "Ladder", meta = (ClampMin = "1"))
-	int32 LadderSegments = 1;
+	int32 _LadderSegments = 1;
 
 	UPROPERTY(EditAnywhere, Category = "Ladder")
-	float SegmentHeight = 200.0f;
+	float _SegmentHeight = 200.0f;
 
-	float ClimbingMinZ = 0.0f;
-	float ClimbingMaxZ = 0.0f;
+	float _ClimbingMinZ = 0.0f;
+	float _ClimbingMaxZ = 0.0f;
 
 	UFUNCTION()
 	void OnClimbVolumeBeginOverlap(
-		UPrimitiveComponent* OverlappedComponent,
-		AActor* OtherActor,
-		UPrimitiveComponent* OtherComp,
-		int32 OtherBodyIndex,
-		bool bFromSweep,
-		const FHitResult& SweepResult
+		UPrimitiveComponent* overlappedComponent,
+		AActor* otherActor,
+		UPrimitiveComponent* otherComp,
+		int32 otherBodyIndex,
+		bool fromSweep,
+		const FHitResult& sweepResult
 	);
 
 };

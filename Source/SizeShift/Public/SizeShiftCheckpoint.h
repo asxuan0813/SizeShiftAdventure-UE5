@@ -23,21 +23,21 @@ public:
 
 protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Checkpoint")
-    USceneComponent* Root;
+    USceneComponent* _Root;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Checkpoint")
-    UArrowComponent* RespawnPoint;
+    UArrowComponent* _RespawnPoint;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Checkpoint")
-    UBoxComponent* Trigger;
+    UBoxComponent* _Trigger;
 
     UFUNCTION()
     void OnCheckpointBeginOverlap(
-        UPrimitiveComponent* OverlappedComponent,
-        AActor* OtherActor,
-        UPrimitiveComponent* OtherComp,
-        int32 OtherBodyIndex,
-        bool bFromSweep,
-        const FHitResult& SweepResult
+        UPrimitiveComponent* overlappedComponent,
+        AActor* otherActor,
+        UPrimitiveComponent* otherComp,
+        int32 otherBodyIndex,
+        bool fromSweep,
+        const FHitResult& sweepResult
     );
 };

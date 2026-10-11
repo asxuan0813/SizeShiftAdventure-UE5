@@ -20,11 +20,11 @@ protected:
 public:
     // Apply damage to the owner.
     UFUNCTION(BlueprintCallable, Category = "Health")
-    void ApplyDamage(float DamageAmount);
+    void ApplyDamage(float damageAmount);
 
     // Heal the owner.
     UFUNCTION(BlueprintCallable, Category = "Health")
-    void Heal(float HealAmount);
+    void Heal(float healAmount);
 
     UFUNCTION(BlueprintPure, Category = "Health")
     float GetCurrentHealth() const;
@@ -36,7 +36,7 @@ public:
     bool IsDead() const;
 
     UPROPERTY(BlueprintAssignable, Category = "Health")
-    FOnDeath OnDeath;
+    FOnDeath _OnDeath;
 
     UFUNCTION(BlueprintCallable, Category = "Health")
     void ResetHealth();
@@ -44,10 +44,8 @@ public:
 protected:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Health")
-    float MaxHealth = 100.0f;
+    float _MaxHealth = 100.0f;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Health")
-    float CurrentHealth = 0.0f;
-
-
+    float _CurrentHealth = 0.0f;
 };

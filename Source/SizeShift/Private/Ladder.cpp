@@ -15,17 +15,17 @@ ALadder::ALadder()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
-    LadderMesh = CreateDefaultSubobject<UInstancedStaticMeshComponent>(
+    _LadderMesh = CreateDefaultSubobject<UInstancedStaticMeshComponent>(
         TEXT("LadderMesh")
     );
-    RootComponent = LadderMesh;
+    RootComponent = _LadderMesh;
 
-    ClimbVolume = CreateDefaultSubobject<UBoxComponent>(
+    _ClimbVolume = CreateDefaultSubobject<UBoxComponent>(
         TEXT("ClimbVolume")
     );
-    ClimbVolume->SetupAttachment(RootComponent);
+    _ClimbVolume->SetupAttachment(RootComponent);
 
-    ClimbVolume->SetGenerateOverlapEvents(true);
+    _ClimbVolume->SetGenerateOverlapEvents(true);
 }
 
 // Called when the game starts or when spawned
@@ -33,9 +33,9 @@ void ALadder::BeginPlay()
 {
 	Super::BeginPlay();
 
-    if (ClimbVolume)
+    if (_ClimbVolume)
     {
-        ClimbVolume->OnComponentBeginOverlap.AddDynamic(
+        _ClimbVolume->OnComponentBeginOverlap.AddDynamic(
             this,
             &ALadder::OnClimbVolumeBeginOverlap
         );
@@ -54,90 +54,90 @@ void ALadder::OnConstruction(const FTransform& Transform)
 {
     Super::OnConstruction(Transform);
 
-    if (!LadderMesh)
+    if (!_LadderMesh)
     {
         return;
     }
 
-    LadderMesh->ClearInstances();
+    _LadderMesh->ClearInstances();
 
-    LadderMesh->SetStaticMesh(LadderMeshAsset);
+    _LadderMesh->SetStaticMesh(_LadderMeshAsset);
 
-    for (int32 Index = 0; Index < LadderSegments; ++Index)
+    for (int32 index = 0; index < _LadderSegments; ++index)
     {
-        const FVector Location(
+        const FVector location(
             0.0f,
             0.0f,
-            Index * SegmentHeight
+            index * _SegmentHeight
         );
 
-        const FTransform InstanceTransform(
+        const FTransform instanceTransform(
             FRotator::ZeroRotator,
-            Location,
+            location,
             FVector::OneVector
         );
 
-        LadderMesh->AddInstance(InstanceTransform);
+        _LadderMesh->AddInstance(instanceTransform);
     }
 
-    const float LadderHeight = LadderSegments * SegmentHeight;
+    const float ladderHeight = _LadderSegments * _SegmentHeight;
 
-    if (ClimbVolume)
+    if (_ClimbVolume)
     {
-        ClimbVolume->SetRelativeLocation(
+        _ClimbVolume->SetRelativeLocation(
             FVector(
-                -40.0f,
-                45.0f,
-                LadderHeight / 2.0f
+                _ClimbVolumeOffsetX,
+                _ClimbVolumeOffsetY,
+                ladderHeight / 2.0f
             )
         );
 
-        ClimbVolume->SetBoxExtent(
+        _ClimbVolume->SetBoxExtent(
             FVector(
-                25.0f,
-                60.0f,
-                LadderHeight / 2.0f
+                _ClimbVolumeExtentX,
+                _ClimbVolumeExtentY,
+                ladderHeight / 2.0f
             )
         );
     }
 }
 
 void ALadder::OnClimbVolumeBeginOverlap(
-    UPrimitiveComponent* OverlappedComponent,
-    AActor* OtherActor,
-    UPrimitiveComponent* OtherComp,
-    int32 OtherBodyIndex,
-    bool bFromSweep,
-    const FHitResult& SweepResult
+    UPrimitiveComponent* overlappedComponent,
+    AActor* otherActor,
+    UPrimitiveComponent* otherComp,
+    int32 otherBodyIndex,
+    bool fromSweep,
+    const FHitResult& sweepResult
 )
 {
-    if (!OtherActor)
+    if (!otherActor)
     {
         return;
     }
 
-    ASizeShiftCharacter* PlayerCharacter =
-        Cast<ASizeShiftCharacter>(OtherActor);
+    ASizeShiftCharacter* playerCharacter =
+        Cast<ASizeShiftCharacter>(otherActor);
 
-    if (!PlayerCharacter)
+    if (!playerCharacter)
     {
         return;
     }
 
-    PlayerCharacter->StartClimbing(this);
+    playerCharacter->StartClimbing(this);
 }
 
 float ALadder::GetLadderHeight() const
 {
-    return LadderSegments * SegmentHeight;
+    return _LadderSegments * _SegmentHeight;
 }
 
 FVector ALadder::GetTopExitLocation() const
 {
-    const float LadderHeight = GetLadderHeight();
+    const float ladderHeight = GetLadderHeight();
 
     return GetActorTransform().TransformPosition(
-        FVector(0.0f, 0.0f, LadderHeight)
+        FVector(0.0f, 0.0f, ladderHeight)
     );
 }
 
@@ -147,5 +147,3 @@ FVector ALadder::GetBottomExitLocation() const
         FVector(0.0f, 0.0f, 0.0f)
     );
 }
-
-

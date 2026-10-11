@@ -2,32 +2,32 @@
 #include "Components/TextBlock.h"
 
 void USizeShiftPromptWidget::SetPromptState(
-    bool bShowInteract,
-    bool bShowSizeUp,
-    bool bShowSizeDown)
+    bool showInteract,
+    bool showSizeUp,
+    bool showSizeDown)
 {
-    if (InteractText)
+    if (_InteractText)
     {
-        InteractText->SetVisibility(
-            bShowInteract
+        _InteractText->SetVisibility(
+            showInteract
             ? ESlateVisibility::Visible
             : ESlateVisibility::Collapsed
         );
     }
 
-    if (SizeUpText)
+    if (_SizeUpText)
     {
-        SizeUpText->SetVisibility(
-            bShowSizeUp
+        _SizeUpText->SetVisibility(
+            showSizeUp
             ? ESlateVisibility::Visible
             : ESlateVisibility::Collapsed
         );
     }
 
-    if (SizeDownText)
+    if (_SizeDownText)
     {
-        SizeDownText->SetVisibility(
-            bShowSizeDown
+        _SizeDownText->SetVisibility(
+            showSizeDown
             ? ESlateVisibility::Visible
             : ESlateVisibility::Collapsed
         );
@@ -35,10 +35,14 @@ void USizeShiftPromptWidget::SetPromptState(
 }
 
 void USizeShiftPromptWidget::SetPromptPosition(
-    FVector2D ScreenPosition)
+    FVector2D screenPosition)
 {
+    SetAlignmentInViewport(
+        FVector2D(0.5f, 0.5f)
+    );
+
     SetPositionInViewport(
-        ScreenPosition,
-        false
+        screenPosition,
+        true
     );
 }

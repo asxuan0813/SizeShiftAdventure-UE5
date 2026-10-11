@@ -15,22 +15,22 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Prompt")
     void SetPromptState(
-        bool bShowInteract,
-        bool bShowSizeUp,
-        bool bShowSizeDown
+        bool showInteract,
+        bool showSizeUp,
+        bool showSizeDown
     );
 
     UFUNCTION(BlueprintCallable, Category = "Prompt")
-    void SetPromptPosition(FVector2D ScreenPosition);
+    void SetPromptPosition(FVector2D screenPosition);
 
 protected:
 
     UPROPERTY(meta = (BindWidget))
-    UTextBlock* InteractText;
+    UTextBlock* _InteractText;
 
     UPROPERTY(meta = (BindWidget))
-    UTextBlock* SizeUpText;
+    UTextBlock* _SizeUpText;
 
     UPROPERTY(meta = (BindWidget))
-    UTextBlock* SizeDownText;
+    UTextBlock* _SizeDownText;
 };

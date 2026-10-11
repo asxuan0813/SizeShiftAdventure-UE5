@@ -16,9 +16,10 @@ class ALadder;
 class ASizeShiftBox;
 class UHealthComponent;
 class ASizeShiftCheckpoint;
+class USizeShiftUXComponent;
 
 UENUM(BlueprintType)
-enum class EPlayerMovementState : uint8
+enum class E_PlayerMovementState : uint8
 {
 	Normal,
 	Sprinting,
@@ -47,11 +48,11 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-	void StartClimbing(ALadder* Ladder);
+	void StartClimbing(ALadder* ladder);
 
 	void StopClimbing();
 
-	void UpdateClimbingMovement(float InputZ);
+	void UpdateClimbingMovement(float inputZ);
 
 	UFUNCTION(BlueprintPure, Category = "Movement")
 	ASizeShiftBox* GetStandingBox() const;
@@ -62,13 +63,13 @@ public:
 	UFUNCTION()
 	void HandleDeath();
 
-	void SetCurrentCheckpoint(ASizeShiftCheckpoint* Checkpoint);
+	void SetCurrentCheckpoint(ASizeShiftCheckpoint* checkpoint);
 
 protected:
 
-	void Move(const struct FInputActionValue& Value);
+	void Move(const struct FInputActionValue& value);
 
-	void Look(const struct FInputActionValue& Value);
+	void Look(const struct FInputActionValue& value);
 
 	void Jump();
 
@@ -84,9 +85,9 @@ protected:
 
 	void StopSprint();
 
-	void SetMovementState(EPlayerMovementState NewState);
+	void SetMovementState(E_PlayerMovementState newState);
 
-	EPlayerMovementState GetMovementState() const;
+	E_PlayerMovementState GetMovementState() const;
 
 	void StopClimbingMovement();
 
@@ -94,125 +95,126 @@ protected:
 
 	void ExitLadderBottom();
 
-	virtual void Landed(const FHitResult& Hit) override;
+	virtual void Landed(const FHitResult& hit) override;
 
 	virtual void OnMovementModeChanged(
-		EMovementMode PrevMovementMode,
-		uint8 PreviousCustomMode
+		EMovementMode prevMovementMode,
+		uint8 previousCustomMode
 	) override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
-	UCameraComponent* FirstPersonCamera;
+	UCameraComponent* _FirstPersonCamera;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputAction* MoveAction;
+	UInputAction* _MoveAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputAction* LookAction;
+	UInputAction* _LookAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputAction* JumpAction;
+	UInputAction* _JumpAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputAction* CrouchAction;
+	UInputAction* _CrouchAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputAction* SprintAction;
+	UInputAction* _SprintAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputAction* SizeUpAction;
+	UInputAction* _SizeUpAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputAction* SizeDownAction;
+	UInputAction* _SizeDownAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputAction* InteractAction;
+	UInputAction* _InteractAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputAction* AdjustHoldDistanceAction;
+	UInputAction* _AdjustHoldDistanceAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputAction* HoldBoxAsideAction;
+	UInputAction* _HoldBoxAsideAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	UInputMappingContext* DefaultMappingContext;
+	UInputMappingContext* _DefaultMappingContext;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gun")
-	UChildActorComponent* SizeShiftGunComponent;
+	UChildActorComponent* _SizeShiftGunComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Gun")
-	TSubclassOf<ASizeShiftGun> SizeShiftGunClass;
+	TSubclassOf<ASizeShiftGun> _SizeShiftGunClass;
 
-	ASizeShiftGun* SizeShiftGun;
+	ASizeShiftGun* _SizeShiftGun;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
-	TSubclassOf<UUserWidget> CrosshairWidgetClass;
+	TSubclassOf<UUserWidget> _CrosshairWidgetClass;
 
 	UPROPERTY()
-	UUserWidget* CrosshairWidget;
+	UUserWidget* _CrosshairWidget;
 
-	FVector OriginalCameraLocation;
+	FVector _OriginalCameraLocation;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement")
-	EPlayerMovementState MovementState = EPlayerMovementState::Normal;
+	E_PlayerMovementState _MovementState = E_PlayerMovementState::Normal;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement")
-	ASizeShiftBox* StandingBox = nullptr;
+	ASizeShiftBox* _StandingBox = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
-	float SprintSpeed = 900.0f;
+	float _SprintSpeed = 900.0f;
 
-	float OriginalWalkSpeed;
+	float _OriginalWalkSpeed;
 
 	UPROPERTY()
-	ALadder* CurrentLadder = nullptr;
+	ALadder* _CurrentLadder = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
-	float ClimbSpeed = 300.0f;
+	float _ClimbSpeed = 300.0f;
 
 	UPROPERTY()
-	TEnumAsByte<EMovementMode> OriginalMovementMode = MOVE_Walking;
+	TEnumAsByte<EMovementMode> _OriginalMovementMode = MOVE_Walking;
 
-	float OriginalGravityScale = 1.0f;
+	float _OriginalGravityScale = 1.0f;
 
 	// Fall Detection
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement|Fall")
-	bool bIsTrackingFall = false;
+	bool _IsTrackingFall = false;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement|Fall")
-	float FallStartZ = 0.0f;
+	float _FallStartZ = 0.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement|Fall")
-	float LastFallDistance = 0.0f;
+	float _LastFallDistance = 0.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement|Fall")
-	float HighestFallZ = 0.0f;
+	float _HighestFallZ = 0.0f;
 
 	void StartFallTracking();
 	void FinishFallTracking();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Health")
-	UHealthComponent* HealthComponent;
+	UHealthComponent* _HealthComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement|Fall Damage")
-	float SafeFallDistance = 300.0f;
+	float _SafeFallDistance = 300.0f;
 
 	void AdjustHoldDistance(
-		const struct FInputActionValue& Value
+		const struct FInputActionValue& value
 	);
 
 	void ToggleThrowAimMode();
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Respawn")
-    FVector RespawnLocation;
+    FVector _RespawnLocation;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Respawn")
-    FRotator RespawnRotation;
+    FRotator _RespawnRotation;
 
     void Respawn();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Respawn")
-	ASizeShiftCheckpoint* CurrentCheckpoint;
+	ASizeShiftCheckpoint* _CurrentCheckpoint;
 
-	
+	UPROPERTY(VisibleAnywhere)
+	USizeShiftUXComponent* _UXComponent;
 };
