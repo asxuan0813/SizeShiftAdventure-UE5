@@ -8,8 +8,10 @@
 
 namespace
 {
+    // Half-size of a Medium box before any size multiplier is applied
     constexpr float BaseHalfSize = 50.0f;
 
+    // Collision channel used to detect obstacles that would block box expansion
     constexpr ECollisionChannel SizeShiftBlocker =
         ECC_GameTraceChannel1;
 }
@@ -34,6 +36,7 @@ ASizeShiftBox::ASizeShiftBox()
 
 void ASizeShiftBox::OnConstruction(const FTransform& Transform)
 {
+    // Recalculates editor-visible properties whenever the actor is constructed
     Super::OnConstruction(Transform);
 
     UpdateBoxProperties();
@@ -41,6 +44,7 @@ void ASizeShiftBox::OnConstruction(const FTransform& Transform)
 
 void ASizeShiftBox::BeginPlay()
 {
+    // Recalculates runtime properties once the box enters play
     Super::BeginPlay();
 
     UpdateBoxProperties();
@@ -48,6 +52,7 @@ void ASizeShiftBox::BeginPlay()
 
 void ASizeShiftBox::SetBoxSize(E_BoxSizeType newSize)
 {
+    // Applies a valid size change, refreshes derived properties, and knocks back nearby characters when growing.
     if (_SizeType == newSize)
     {
         return;
@@ -67,6 +72,7 @@ void ASizeShiftBox::SetBoxSize(E_BoxSizeType newSize)
 
 void ASizeShiftBox::IncreaseBoxSize()
 {
+    // Attempts the next larger size only after checking that the new volume has clearance
     switch (_SizeType)
     {
     case E_BoxSizeType::Small:
@@ -102,6 +108,7 @@ void ASizeShiftBox::IncreaseBoxSize()
 
 void ASizeShiftBox::DecreaseBoxSize()
 {
+    // Changes to the next smaller size; Small remains at its minimum size
     switch (_SizeType)
     {
     case E_BoxSizeType::Small:
@@ -130,31 +137,37 @@ void ASizeShiftBox::DecreaseBoxSize()
 
 E_BoxSizeType ASizeShiftBox::GetBoxSize() const
 {
+    // Returns the current configured size level
     return _SizeType;
 }
 
 E_BoxInteractionType ASizeShiftBox::GetInteractionType() const
 {
+    // Returns the interaction mode derived from the current size
     return _InteractionType;
 }
 
 float ASizeShiftBox::GetDensity() const
 {
+    // Returns the material-derived density cached by UpdateBoxProperties
     return _Density;
 }
 
 float ASizeShiftBox::GetVolume() const
 {
+    // Returns the size-adjusted volume cached by UpdateBoxProperties
     return _Volume;
 }
 
 float ASizeShiftBox::GetMass() const
 {
+    // Returns the calculated physics mass cached by UpdateBoxProperties
     return _Mass;
 }
 
 bool ASizeShiftBox::HasPushPullGroundSupport() const
 {
+    // Sweeps just below the mesh to ensure a push/pull box still has static-world support
     if (!GetWorld() || !_BoxMesh)
     {
         return false;
@@ -198,6 +211,7 @@ bool ASizeShiftBox::HasPushPullGroundSupport() const
 
 bool ASizeShiftBox::CanResizeTo(E_BoxSizeType newSize) const
 {
+    // Tests all three axes to ensure an expanding box has clearance on at least one side of each axis
     const float currentMultiplier = GetSizeMultiplier(_SizeType);
     const float targetMultiplier = GetSizeMultiplier(newSize);
 
@@ -244,6 +258,7 @@ bool ASizeShiftBox::CanResizeInDirection(
     float requiredDistance
 ) const
 {
+    // Checks the additional volume that expansion would occupy in one world direction
     if (!GetWorld() || !_BoxMesh || requiredDistance <= 0.0f)
     {
         return true;
@@ -304,6 +319,7 @@ bool ASizeShiftBox::CanResizeInDirection(
 
 void ASizeShiftBox::ApplyGrowImpact()
 {
+    // Finds nearby characters and launches them with impulses based on the new size
     if (!GetWorld())
     {
         return;
@@ -374,32 +390,35 @@ void ASizeShiftBox::ApplyGrowImpact()
 
 float ASizeShiftBox::GetCurrentSizeMultiplier() const
 {
+    // Looks up the multiplier that corresponds to the current size
     return GetSizeMultiplier(_SizeType);
 }
 
 float ASizeShiftBox::GetSizeMultiplier(E_BoxSizeType inSize) const
 {
+    // Maps Small, Medium, and Large to their relative linear scale values
     switch (inSize)
     {
     case E_BoxSizeType::Small:
-        return 0.49f;
+        return 0.5f;
 
     case E_BoxSizeType::Medium:
-        return 0.99f;
+        return 1.0f;
 
     case E_BoxSizeType::Large:
-        return 1.99f;
+        return 2.0f;
 
     default:
-        return 0.99f;
+        return 1.0f;
     }
 }
 
 float ASizeShiftBox::ResolveMaterialDensity() const
 {
+    // Reads density from material data or returns the fallback density when none is assigned
     if (_MaterialData)
     {
-        return _MaterialData->_MaterialProperties._Density;
+        return _MaterialData->_MaterialProperties.density;
     }
 
     UE_LOG(
@@ -408,11 +427,12 @@ float ASizeShiftBox::ResolveMaterialDensity() const
         TEXT("[SizeShiftBox] No MaterialData assigned. Using default density.")
     );
 
-    return 200.0f;
+    return 500.0f;
 }
 
 void ASizeShiftBox::UpdateInteractionType()
 {
+    // Assigns pickup/throw, push/pull, or immovable behaviour from the current size
     switch (_SizeType)
     {
     case E_BoxSizeType::Small:
@@ -447,6 +467,7 @@ void ASizeShiftBox::UpdateInteractionType()
 
 void ASizeShiftBox::UpdateBoxProperties()
 {
+    // Central refresh flow: recalculates physics, applies scale and mass, updates interaction type, then logs status
     const float sizeMultiplier =
         GetCurrentSizeMultiplier();
 
@@ -468,8 +489,11 @@ void ASizeShiftBox::UpdateBoxProperties()
     // Update visual size
     // --------------------------------------------------------
 
+    // Apply a separate fit scale to the actual Box.
+    const float fitScaleMultiplier = 0.98f;
+
     SetActorScale3D(
-        FVector(sizeMultiplier)
+        FVector(sizeMultiplier * fitScaleMultiplier)
     );
 
     // --------------------------------------------------------
@@ -498,11 +522,11 @@ void ASizeShiftBox::UpdateBoxProperties()
     // --------------------------------------------------------
 
     PrintBoxStatus();
-    
 }
 
 void ASizeShiftBox::PrintBoxStatus() const
 {
+    // Formats the current material, size, interaction, and physics values for the output log
     FString sizeName;
     FString interactionName;
 

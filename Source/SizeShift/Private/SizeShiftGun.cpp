@@ -1,6 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "SizeShiftGun.h"
 #include "SizeShiftUXComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -10,7 +9,6 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "SizeShiftCharacter.h"
 
-// Sets default values
 ASizeShiftGun::ASizeShiftGun()
 {
     PrimaryActorTick.bCanEverTick = true;
@@ -50,12 +48,11 @@ ASizeShiftGun::ASizeShiftGun()
     _ActiveInteractionTarget = nullptr;
 
     _GunState = E_SizeShiftGunState::Idle;
-
 }
 
-// Called when the game starts or when spawned
 void ASizeShiftGun::BeginPlay()
 {
+    // Sets the initial runtime state and remembers the default hold distance
 	Super::BeginPlay();
 
     SetGunState(
@@ -66,9 +63,9 @@ void ASizeShiftGun::BeginPlay()
 	
 }
 
-// Called every frame
 void ASizeShiftGun::Tick(float DeltaTime)
 {
+    // Updates aim detection, then advances any active pickup or push/pull behaviour.
     Super::Tick(DeltaTime);
 
     UpdateAimTarget();
@@ -78,12 +75,9 @@ void ASizeShiftGun::Tick(float DeltaTime)
     UpdatePushPull(DeltaTime);
 }
 
-// ============================================================
-// Aim
-// ============================================================
-
 ASizeShiftBox* ASizeShiftGun::GetAimTarget() const
 {
+    // Traces from the player's camera and returns a SizeShiftBox hit by the visibility channel.
     APlayerController* playerController =
         GetPlayerController();
 
@@ -131,32 +125,32 @@ ASizeShiftBox* ASizeShiftGun::GetAimTarget() const
 
 void ASizeShiftGun::UpdateAimTarget()
 {
+    // Stores aim-target changes and refreshes the gun UI every frame.
     ASizeShiftBox* newAimTarget = GetAimTarget();
 
     if (newAimTarget != _CurrentAimTarget)
     {
-        _CurrentAimTarget = newAimTarget;
-    }
-
-    if (_UXComponent)
-    {
-        _UXComponent->UpdateTargetOutline(
-            _CurrentAimTarget,
-            CanInteractWithCurrentTarget(),
-            CanCurrentlySizeShift(),
-            _GunState == E_SizeShiftGunState::Interacting
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("[Aim Debug] Target Changed: %s -> %s"),
+            IsValid(_CurrentAimTarget)
+            ? *_CurrentAimTarget->GetName()
+            : TEXT("None"),
+            IsValid(newAimTarget)
+            ? *newAimTarget->GetName()
+            : TEXT("None")
         );
+
+        _CurrentAimTarget = newAimTarget;
     }
 
     RefreshUX();
 }
 
-// ============================================================
-// Size Control
-// ============================================================
-
 void ASizeShiftGun::IncreaseSize()
 {
+    // Increase a valid target, then plays success or invalid-action feedback
     if (!CanCurrentlySizeShift())
     {
         return;
@@ -179,16 +173,13 @@ void ASizeShiftGun::IncreaseSize()
     const E_BoxSizeType newSize =
         _CurrentAimTarget->GetBoxSize();
 
-    if (oldSize != newSize)
+    if (_UXComponent)
     {
-        if (_UXComponent)
+        if (oldSize != newSize)
         {
             _UXComponent->PlaySizeShiftSound();
         }
-    }
-    else if (oldSize == E_BoxSizeType::Large)
-    {
-        if (_UXComponent)
+        else
         {
             _UXComponent->PlayInvalidActionSound();
         }
@@ -204,6 +195,7 @@ void ASizeShiftGun::IncreaseSize()
 
 void ASizeShiftGun::DecreaseSize()
 {
+    // Decrease a valid target, with feedback when its size cannot change further
     if (!CanCurrentlySizeShift())
     {
         return;
@@ -251,6 +243,7 @@ void ASizeShiftGun::DecreaseSize()
 
 void ASizeShiftGun::UnlockSizeShift()
 {
+    // Enables size shifting and immediately refreshes the target outline and prompts
     _CanSizeShift = true;
 
     if (_UXComponent)
@@ -267,6 +260,7 @@ void ASizeShiftGun::UnlockSizeShift()
 
 void ASizeShiftGun::LockSizeShift()
 {
+    // Disables size shifting and refreshes the UI state
     _CanSizeShift = false;
 
     RefreshUX();
@@ -274,16 +268,19 @@ void ASizeShiftGun::LockSizeShift()
 
 bool ASizeShiftGun::CanSizeShift() const
 {
+    // Returns whether the size-shift ability has been unlocked
     return _CanSizeShift;
 }
 
 bool ASizeShiftGun::HasAimTarget() const
 {
+    // Checks whether the current aim trace has selected a target
     return _CurrentAimTarget != nullptr;
 }
 
 bool ASizeShiftGun::CanInteractWithCurrentTarget() const
 {
+    // Validates target type, range, character movement, and standing-box restrictions
     if (!HasAimTarget())
     {
         return false;
@@ -320,17 +317,15 @@ bool ASizeShiftGun::CanInteractWithCurrentTarget() const
 
 bool ASizeShiftGun::CanCurrentlySizeShift() const
 {
+    // Requires the ability, an aim target, and size-shift range
     return CanSizeShift() &&
         HasAimTarget() &&
         IsWithinSizeShiftRange();
 }
 
-// ============================================================
-// Interaction Flow
-// ============================================================
-
 void ASizeShiftGun::Interact()
 {
+    // Toggles the current interaction: stops an active one or validates and starts a new one
     if (_GunState == E_SizeShiftGunState::Interacting)
     {
         StopInteraction();
@@ -338,7 +333,7 @@ void ASizeShiftGun::Interact()
     }
 
     if (!CanInteractWithCurrentTarget())
-    {
+     {
         if (_CurrentAimTarget &&
             IsWithinInteractionRange())
         {
@@ -348,8 +343,13 @@ void ASizeShiftGun::Interact()
             }
         }
 
-        PrintGunStatus(
-            TEXT("INTERACT FAILED -> Target unavailable")
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("[Interact Debug] AimTarget: %s"),
+            IsValid(_CurrentAimTarget)
+            ? *_CurrentAimTarget->GetName()
+            : TEXT("None")
         );
 
         return;
@@ -363,6 +363,7 @@ void ASizeShiftGun::Interact()
 
 void ASizeShiftGun::CancelInteraction()
 {
+    // Safely stops an interaction when another system requests cancellation
     if (_GunState != E_SizeShiftGunState::Interacting)
     {
         return;
@@ -373,6 +374,7 @@ void ASizeShiftGun::CancelInteraction()
 
 bool ASizeShiftGun::IsWithinInteractionRange() const
 {
+    // Measures owner-to-target distance against the interaction limit
     if (!_CurrentAimTarget || !GetOwner())
     {
         return false;
@@ -388,6 +390,7 @@ bool ASizeShiftGun::IsWithinInteractionRange() const
 
 bool ASizeShiftGun::IsWithinSizeShiftRange() const
 {
+    // Measures owner-to-target distance against the size-shift limit
     if (!_CurrentAimTarget || !GetOwner())
     {
         return false;
@@ -403,6 +406,7 @@ bool ASizeShiftGun::IsWithinSizeShiftRange() const
 
 void ASizeShiftGun::StartInteraction()
 {
+    // Dispatches the active target to pickup/throw or push/pull setup, then updates gun state
     if (!_ActiveInteractionTarget)
     {
         SetGunState(E_SizeShiftGunState::Idle);
@@ -461,6 +465,7 @@ void ASizeShiftGun::StartInteraction()
 
 void ASizeShiftGun::StopInteraction()
 {
+    // Stops the matching interaction mode and clears the shared interaction state
     SetThrowAimMode(false);
 
     if (!_ActiveInteractionTarget)
@@ -497,11 +502,13 @@ void ASizeShiftGun::StopInteraction()
 void ASizeShiftGun::SetGunState(
     E_SizeShiftGunState newState)
 {
+    // Stores the current high-level gun state
     _GunState = newState;
 }
 
 void ASizeShiftGun::ClearInteraction()
 {
+    // Clears the active target and returns the gun to idle
     _ActiveInteractionTarget = nullptr;
 
     SetGunState(
@@ -511,6 +518,7 @@ void ASizeShiftGun::ClearInteraction()
 
 FString ASizeShiftGun::GetGunStateName() const
 {
+    // Converts the current enum state into readable debug text
     switch (_GunState)
     {
     case E_SizeShiftGunState::Idle:
@@ -526,6 +534,7 @@ FString ASizeShiftGun::GetGunStateName() const
 
 APlayerController* ASizeShiftGun::GetPlayerController() const
 {
+    // Gets the controller associated with this gun's owning character
     if (!GetOwner())
     {
         return nullptr;
@@ -536,12 +545,9 @@ APlayerController* ASizeShiftGun::GetPlayerController() const
     );
 }
 
-// ============================================================
-// Pickup / Throw
-// ============================================================
-
 FVector ASizeShiftGun::GetHoldLocation() const
 {
+    // Calculates the desired held-box location in front of the player's camera
     APlayerController* playerController =
         GetPlayerController();
 
@@ -564,6 +570,7 @@ FVector ASizeShiftGun::GetHoldLocation() const
 
 void ASizeShiftGun::UpdatePickupThrow()
 {
+    // Auto-drops distant held boxes; otherwise updates the held box's movement
     if (!IsHoldingPickupThrow() ||
         !_ActiveInteractionTarget ||
         !GetOwner())
@@ -596,6 +603,7 @@ void ASizeShiftGun::UpdatePickupThrow()
 
 void ASizeShiftGun::UpdateHeldBox()
 {
+    // Sweeps a held box toward its target, then slides it along blocking surfaces
     if (!_ActiveInteractionTarget)
     {
         return;
@@ -673,6 +681,7 @@ void ASizeShiftGun::UpdateHeldBox()
 
 bool ASizeShiftGun::StartPickupHold()
 {
+    // Validates a physics-enabled box, saves its rotation, and switches it to held physics
     if (!_ActiveInteractionTarget)
     {
         return false;
@@ -711,10 +720,7 @@ bool ASizeShiftGun::StartPickupHold()
         cameraRotation
     );
 
-    _HoldDistance = FVector::Dist(
-        cameraLocation,
-        boxMesh->GetComponentLocation()
-    );
+    _HoldDistance = _MinHoldDistance;
 
     _HeldBoxRotation =
         boxMesh->GetComponentRotation();
@@ -730,6 +736,7 @@ bool ASizeShiftGun::StartPickupHold()
 
 void ASizeShiftGun::StopPickupHold()
 {
+    // Restores released-box physics and clears the saved held rotation
     if (!_ActiveInteractionTarget)
     {
         return;
@@ -756,6 +763,7 @@ void ASizeShiftGun::StopPickupHold()
 
 void ASizeShiftGun::SetHeldBoxPhysics(bool isHeld)
 {
+    // Uses query-only collision while held, then restores collision and simulation on release
     if (!_ActiveInteractionTarget)
     {
         return;
@@ -789,6 +797,7 @@ void ASizeShiftGun::SetHeldBoxPhysics(bool isHeld)
 
 void ASizeShiftGun::Drop()
 {
+    // Releases a box only if pickup/throw mode is active
     if (!IsHoldingPickupThrow())
     {
         return;
@@ -799,6 +808,7 @@ void ASizeShiftGun::Drop()
 
 bool ASizeShiftGun::IsHoldingPickupThrow() const
 {
+    // Returns whether the active interaction is a pickup/throw operation
     if (_GunState != E_SizeShiftGunState::Interacting)
     {
         return false;
@@ -815,6 +825,7 @@ bool ASizeShiftGun::IsHoldingPickupThrow() const
 
 void ASizeShiftGun::Throw()
 {
+    // Restores physics, applies camera-forward velocity, plays feedback, and clears interaction
     SetThrowAimMode(false);
 
     if (_GunState != E_SizeShiftGunState::Interacting ||
@@ -888,12 +899,9 @@ void ASizeShiftGun::Throw()
     ClearInteraction();
 }
 
-// ============================================================
-// Push / Pull
-// ============================================================
-
 bool ASizeShiftGun::StartPushPull()
 {
+    // Validates the target, captures the initial horizontal facing direction, and begins control
     if (!_ActiveInteractionTarget || !GetOwner())
     {
         PrintGunStatus(
@@ -963,6 +971,7 @@ bool ASizeShiftGun::StartPushPull()
 
 void ASizeShiftGun::UpdatePushPull(float deltaTime)
 {
+    // Smoothly moves a grounded physics box toward an anchor in front of the player
     if (!IsHoldingPushPull() ||
         !GetOwner())
     {
@@ -1117,6 +1126,7 @@ void ASizeShiftGun::UpdatePushPull(float deltaTime)
 
 void ASizeShiftGun::StopPushPull()
 {
+    // Preserves vertical velocity, clears horizontal movement, and resets push/pull state
     SetThrowAimMode(false);
 
     _CurrentPushPullDistance = 0.0f;
@@ -1162,6 +1172,7 @@ void ASizeShiftGun::StopPushPull()
 
 void ASizeShiftGun::UpdatePushPullFacing()
 {
+    // Rotates the active box toward the player and removes angular physics velocity
     if (!_ActiveInteractionTarget || !GetOwner())
     {
         return;
@@ -1206,6 +1217,7 @@ void ASizeShiftGun::UpdatePushPullFacing()
 
 bool ASizeShiftGun::IsHoldingPushPull() const
 {
+    // Returns whether the active interaction is a push/pull operation
     return _GunState == E_SizeShiftGunState::Interacting &&
         _ActiveInteractionTarget &&
         _ActiveInteractionTarget->GetInteractionType() ==
@@ -1214,6 +1226,7 @@ bool ASizeShiftGun::IsHoldingPushPull() const
 
 void ASizeShiftGun::PushPullBurst()
 {
+    // Ends push/pull control and launches the box forward with an impulse
     if (!IsHoldingPushPull() || !GetOwner())
     {
         return;
@@ -1255,12 +1268,9 @@ void ASizeShiftGun::PushPullBurst()
     }
 }
 
-// ============================================================
-// Grab Distance
-// ============================================================
-
 void ASizeShiftGun::AdjustHoldDistance(float scrollValue)
 {
+    // Applies scroll input to the held-box distance within configured limits
     if (!IsHoldingPickupThrow() ||
         FMath::IsNearlyZero(scrollValue))
     {
@@ -1275,10 +1285,9 @@ void ASizeShiftGun::AdjustHoldDistance(float scrollValue)
     );
 }
 
-//=============================================================
-
 void ASizeShiftGun::ToggleThrowAimMode()
 {
+    // Toggles throw-aim presentation only while holding a pickup/throw box
     if (!IsHoldingPickupThrow())
     {
         return;
@@ -1289,6 +1298,7 @@ void ASizeShiftGun::ToggleThrowAimMode()
 
 void ASizeShiftGun::TryThrow()
 {
+    // Throws only after throw-aim mode has been enabled
     if (!IsHoldingPickupThrow() ||
         !_IsThrowAimMode)
     {
@@ -1303,6 +1313,7 @@ void ASizeShiftGun::TryThrow()
 void ASizeShiftGun::SetThrowAimMode(
     bool newThrowAimMode)
 {
+    // Saves/restores hold distance and shows/hides the preview for the requested aim mode
     if (_IsThrowAimMode == newThrowAimMode)
     {
         return;
@@ -1331,12 +1342,9 @@ void ASizeShiftGun::SetThrowAimMode(
     }
 }
 
-// =============================================================
-// Show Held Box Preview
-// =============================================================
-
 void ASizeShiftGun::ShowHeldBoxPreview()
 {
+    // Copies the held box mesh and materials into a visible, non-physical preview
     if (!_ActiveInteractionTarget ||
         !_HeldBoxPreview)
     {
@@ -1376,6 +1384,7 @@ void ASizeShiftGun::ShowHeldBoxPreview()
 
 void ASizeShiftGun::HideHeldBoxPreview()
 {
+    // Hides the preview and restores visibility of the real held box
     if (_HeldBoxPreview)
     {
         _HeldBoxPreview->SetVisibility(false);
@@ -1395,6 +1404,7 @@ void ASizeShiftGun::HideHeldBoxPreview()
 
 void ASizeShiftGun::RefreshUX()
 {
+    // Updates the target outline, prompts, and on-screen prompt position from current gun state
     if (!_UXComponent)
     {
         return;
@@ -1498,14 +1508,10 @@ void ASizeShiftGun::RefreshUX()
     }
 }
 
-
-// ============================================================
-// Debug
-// ============================================================
-
 void ASizeShiftGun::PrintGunStatus(
     const FString& message) const
 {
+    // Logs and optionally displays the current state and active target for troubleshooting
     if (!_EnableDebug)
     {
         return;

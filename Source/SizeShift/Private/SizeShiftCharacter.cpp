@@ -1,11 +1,10 @@
 // Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "SizeShiftCharacter.h"
 #include "Ladder.h"
 #include "Components/ChildActorComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
@@ -18,10 +17,8 @@
 #include "SizeShiftCheckpoint.h"
 #include "SizeShiftUXComponent.h"
 
-// Sets default values
 ASizeShiftCharacter::ASizeShiftCharacter()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	_FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
@@ -51,11 +48,11 @@ ASizeShiftCharacter::ASizeShiftCharacter()
 		CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
 
 	_CurrentCheckpoint = nullptr;
-
 }
 
 void ASizeShiftCharacter::OnConstruction(const FTransform& Transform)
 {
+	// Applies the editor-configured gun class whenever this actor is constructed
 	Super::OnConstruction(Transform);
 
 	if (_SizeShiftGunComponent && _SizeShiftGunClass)
@@ -68,6 +65,7 @@ void ASizeShiftCharacter::OnConstruction(const FTransform& Transform)
 
 void ASizeShiftCharacter::Tick(float DeltaSeconds)
 {
+	// While falling, keeps the highest reached Z value for landing-distance checks
 	Super::Tick(DeltaSeconds);
 
 	if (!_IsTrackingFall)
@@ -83,7 +81,7 @@ void ASizeShiftCharacter::Tick(float DeltaSeconds)
 	);
 }
 
-// Called when the game starts or when spawned
+// Initializes runtime-only references, input, UI, weapon ownership, and respawn data.
 void ASizeShiftCharacter::BeginPlay()
 {
 	Super::BeginPlay();
@@ -155,6 +153,7 @@ void ASizeShiftCharacter::BeginPlay()
 
 void ASizeShiftCharacter::Move(const FInputActionValue& value)
 {
+	// Routes movement input to ladder movement while climbing; otherwise moves on the ground plane.
 	const FVector2D movementVector =
 		value.Get<FVector2D>();
 
@@ -177,6 +176,7 @@ void ASizeShiftCharacter::Move(const FInputActionValue& value)
 
 void ASizeShiftCharacter::Look(const FInputActionValue& value)
 {
+	// Converts look-axis input into controller yaw and pitch rotation.
 	FVector2D lookAxisVector = value.Get<FVector2D>();
 
 	AddControllerYawInput(lookAxisVector.X);
@@ -185,6 +185,7 @@ void ASizeShiftCharacter::Look(const FInputActionValue& value)
 
 void ASizeShiftCharacter::Jump()
 {
+	// Blocks jumping during ladder movement, then delegates normal jumping to ACharacter.
 	if (_MovementState == E_PlayerMovementState::Climbing)
 	{
 		return;
@@ -195,6 +196,7 @@ void ASizeShiftCharacter::Jump()
 
 void ASizeShiftCharacter::ToggleCrouch()
 {
+	// Toggles crouching and adjusts the first-person camera; climbing cannot crouch.
 	if (_MovementState == E_PlayerMovementState::Climbing)
 	{
 		return;
@@ -234,6 +236,7 @@ void ASizeShiftCharacter::ToggleCrouch()
 
 void ASizeShiftCharacter::StartSprint()
 {
+	// Leaves crouching if necessary, then changes state and applies sprint speed.
 	if (_MovementState == E_PlayerMovementState::Crouching)
 	{
 		UnCrouch();
@@ -252,6 +255,7 @@ void ASizeShiftCharacter::StartSprint()
 
 void ASizeShiftCharacter::StopSprint()
 {
+	// Restores normal movement state and the saved walking speed.
 	if (_MovementState != E_PlayerMovementState::Sprinting)
 	{
 		return;
@@ -264,6 +268,7 @@ void ASizeShiftCharacter::StopSprint()
 
 void ASizeShiftCharacter::StartClimbing(ALadder* ladder)
 {
+	// Aligns the character to a ladder, saves movement settings, then switches to flying movement.
 	UE_LOG(
 		LogTemp,
 		Warning,
@@ -342,6 +347,7 @@ void ASizeShiftCharacter::StartClimbing(ALadder* ladder)
 
 void ASizeShiftCharacter::StopClimbing()
 {
+	// Restores the saved gravity and movement mode after leaving a ladder.
 	UE_LOG(
 		LogTemp,
 		Warning,
@@ -370,6 +376,7 @@ void ASizeShiftCharacter::StopClimbing()
 
 void ASizeShiftCharacter::StopClimbingMovement()
 {
+	// Stops vertical velocity when climbing input completes.
 	if (_MovementState != E_PlayerMovementState::Climbing)
 	{
 		return;
@@ -384,6 +391,7 @@ void ASizeShiftCharacter::StopClimbingMovement()
 
 void ASizeShiftCharacter::UpdateClimbingMovement(float inputZ)
 {
+	// Moves vertically on the current ladder and exits at its top or bottom bounds.
 	if (!_CurrentLadder)
 	{
 		return;
@@ -444,6 +452,7 @@ void ASizeShiftCharacter::UpdateClimbingMovement(float inputZ)
 
 void ASizeShiftCharacter::ExitLadderTop()
 {
+	// Places the character on the top platform, then restores normal movement.
 	if (!_CurrentLadder)
 	{
 		return;
@@ -480,6 +489,7 @@ void ASizeShiftCharacter::ExitLadderTop()
 
 void ASizeShiftCharacter::ExitLadderBottom()
 {
+	// Places the character at the ladder base, then restores normal movement.
 	if (!_CurrentLadder)
 	{
 		UE_LOG(
@@ -528,6 +538,7 @@ void ASizeShiftCharacter::ExitLadderBottom()
 
 void ASizeShiftCharacter::Landed(const FHitResult& hit)
 {
+	// Records a box underfoot and completes any active fall-distance calculation.
 	Super::Landed(hit);
 
 	ASizeShiftBox* landedBox =
@@ -557,6 +568,7 @@ void ASizeShiftCharacter::OnMovementModeChanged(
 	EMovementMode prevMovementMode,
 	uint8 previousCustomMode)
 {
+	// Starts fall tracking whenever Unreal changes this character into falling mode.
 	Super::OnMovementModeChanged(
 		prevMovementMode,
 		previousCustomMode
@@ -572,6 +584,7 @@ void ASizeShiftCharacter::OnMovementModeChanged(
 
 void ASizeShiftCharacter::StartFallTracking()
 {
+	// Captures the initial height and resets data for one fall.
 	if (_IsTrackingFall)
 	{
 		return;
@@ -593,6 +606,7 @@ void ASizeShiftCharacter::StartFallTracking()
 
 void ASizeShiftCharacter::FinishFallTracking()
 {
+	// Calculates landing distance and applies fatal damage beyond the safe threshold.
 	const float landingZ = GetActorLocation().Z;
 
 	_LastFallDistance =
@@ -641,21 +655,47 @@ void ASizeShiftCharacter::FinishFallTracking()
 
 ASizeShiftBox* ASizeShiftCharacter::GetStandingBox() const
 {
-	return _StandingBox;
+	// Returns the SizeShiftBox used as the grounded movement base
+	UCharacterMovementComponent* characterMovement =
+		GetCharacterMovement();
+
+	if (!characterMovement ||
+		!characterMovement->IsMovingOnGround())
+	{
+		return nullptr;
+	}
+
+	UPrimitiveComponent* movementBase =
+		characterMovement->GetMovementBase();
+
+	if (!IsValid(movementBase))
+	{
+		return nullptr;
+	}
+
+	return Cast<ASizeShiftBox>(
+		movementBase->GetOwner()
+	);
 }
 
 void ASizeShiftCharacter::SetMovementState(
 	E_PlayerMovementState newState)
 {
+	// Stores the current high-level movement state used by input handlers.
 	_MovementState = newState;
 }
 
 E_PlayerMovementState ASizeShiftCharacter::GetMovementState() const
 {
+	// Exposes the current high-level movement state.
 	return _MovementState;
 }
 
-// Called to bind functionality to input
+// -----------------------------------------------------------------------------
+// Input bindings
+// -----------------------------------------------------------------------------
+
+// Connects Enhanced Input actions to character, ladder, and gun handlers.
 void ASizeShiftCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
@@ -787,7 +827,9 @@ void ASizeShiftCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 	}
 }
 
-//---------------------------------------Size Shift----------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Size-shift gun interaction
+// -----------------------------------------------------------------------------
 
 void ASizeShiftCharacter::IncreaseSize()
 {
@@ -843,11 +885,10 @@ void ASizeShiftCharacter::Interact()
 	_SizeShiftGun->Interact();
 }
 
-//------------------------------------------------------------------
-
 void ASizeShiftCharacter::AdjustHoldDistance(
 	const FInputActionValue& value)
 {
+	// Sends analog input to the gun to change the held box's distance.
 	if (_SizeShiftGun)
 	{
 		_SizeShiftGun->AdjustHoldDistance(
@@ -858,21 +899,26 @@ void ASizeShiftCharacter::AdjustHoldDistance(
 
 void ASizeShiftCharacter::ToggleThrowAimMode()
 {
+	// Switches the gun between its regular and throw-aim handling modes.
 	if (_SizeShiftGun)
 	{
 		_SizeShiftGun->ToggleThrowAimMode();
 	}
 }
 
-//--------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Health and respawn flow
+// -----------------------------------------------------------------------------
 
 UHealthComponent* ASizeShiftCharacter::GetHealthComponent() const
 {
+	// Provides access to the character's health component.
 	return _HealthComponent;
 }
 
 void ASizeShiftCharacter::HandleDeath()
 {
+	// Plays death feedback, then starts the respawn flow triggered by HealthComponent.
 	if (_UXComponent)
 	{
 		_UXComponent->PlayDeathSound();
@@ -889,6 +935,7 @@ void ASizeShiftCharacter::HandleDeath()
 
 void ASizeShiftCharacter::Respawn()
 {
+	// Chooses a checkpoint or initial spawn, teleports there, stops motion, and restores health.
 	UE_LOG(
 		LogTemp,
 		Warning,
@@ -946,9 +993,9 @@ void ASizeShiftCharacter::Respawn()
 }
 
 void ASizeShiftCharacter::SetCurrentCheckpoint(
-	ASizeShiftCheckpoint* checkpoint
-)
+	ASizeShiftCheckpoint* checkpoint)
 {
+	// Stores a valid checkpoint for future respawns
 	if (!checkpoint)
 	{
 		return;
